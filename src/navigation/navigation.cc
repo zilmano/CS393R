@@ -32,6 +32,11 @@
 #include "shared/ros/ros_helpers.h"
 #include "navigation.h"
 #include "visualization/visualization.h"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xbuffer_adaptor.hpp"
+#include "xtensor/xio.hpp"
+#include <vector>
 
 using Eigen::Vector2f;
 using amrl_msgs::AckermannCurvatureDriveMsg;
@@ -110,36 +115,40 @@ void Navigation::Run() {
   // Milestone 3 will complete the rest of navigation.
 
   // Speed increment
+  /*
+  auto a = xt::adapt(robot_loc_.data(), 2, xt::no_ownership(), std::vector<int>{2});
+  std::cout << a << std::endl;
+   */
+
+  float c_p = 0.75f;
+  float epsilon = 0.045f;
+
   auto spd_inc = Assignment0::timeframe * PhysicsConsts::max_acc;
 
   // Distance to stop {Vt^2 - V0^2 = 2ad}
   auto v0_norm = robot_vel_.norm();
-  auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc);
+  auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
 
   // Current Distance
   auto curr_dist = (robot_loc_ - init_loc).norm();
   auto curr_spd = robot_vel_.norm();
   printf("Current dist %f, current spd %f\n", curr_dist, curr_spd);
-  if (curr_dist > Assignment0::target_dis or !is_initloc_inited){
-      drive_msg_.curvature = 0;
+  drive_msg_.curvature = 0;
+
+  if (curr_dist >= Assignment0::target_dis or !is_initloc_inited){
       drive_msg_.velocity = 0;
-      drive_pub_.publish(drive_msg_);
-  } else if (curr_dist + dis2stop > Assignment0::target_dis) {
-      curr_spd -= spd_inc;
-      drive_msg_.curvature = 0;
+  } else if (curr_dist + dis2stop >= Assignment0::target_dis) {
+      curr_spd -= spd_inc + (Assignment0::target_dis - curr_dist) * c_p;
       drive_msg_.velocity = curr_spd;
-      drive_pub_.publish(drive_msg_);
   } else if (curr_spd >= PhysicsConsts::max_vel) {
       curr_spd = PhysicsConsts::max_vel;
-      drive_msg_.curvature = 0;
       drive_msg_.velocity = curr_spd;
-      drive_pub_.publish(drive_msg_);
   } else {
       curr_spd += spd_inc;
-      drive_msg_.curvature = 0;
       drive_msg_.velocity = curr_spd;
-      drive_pub_.publish(drive_msg_);
   }
+
+  drive_pub_.publish(drive_msg_);
 }
 
 }  // namespace navigation

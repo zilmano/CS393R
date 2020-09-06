@@ -15,7 +15,7 @@ ADD_LIBRARY(amrl-shared-lib
             util/timer.cc
             util/random.cc
             util/serialization.cc
-            util/terminal_colors.cc)
+            util/terminal_colors.cc ros/ros_helper_xtensor.h)
 TARGET_LINK_LIBRARIES(amrl-shared-lib ${libs})
 
 

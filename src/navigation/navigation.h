@@ -31,7 +31,7 @@ namespace ros {
 }  // namespace ros
 
 namespace PhysicsConsts{
-    const static float max_acc = 4.0f;
+    const static float max_acc = 3.0f;
     const static float max_vel = 1.0f;
 }
 
