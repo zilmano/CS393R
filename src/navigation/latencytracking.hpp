@@ -76,7 +76,7 @@ private:
         bool is_matched = is_equal(control_list.front(), measure_list.back());
         if (is_matched){
             latency_list.emplace_back(measure_list.back().timestamp - control_list.front().timestamp);
-            control_list.pop_front();
+            if (control_list.size() > 1) control_list.pop_front();
             if (!IsKeepMeasure) measure_list.clear();
             update_latency_list();
         }
