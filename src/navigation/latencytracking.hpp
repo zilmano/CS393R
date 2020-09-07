@@ -56,7 +56,7 @@ private:
     std::deque<TMeasure> measure_list;
     std::deque<TControl> control_list;
     std::deque<float> latency_list;
-    const unsigned long NumConcurrentControlInQueue = 2;
+    const unsigned long NumConcurrentControlInQueue = 8;
 
     // Compile-time dispatch with SFINAE
     template<typename TLHS, typename TRHS, typename std::enable_if<std::is_scalar<decltype(TLHS::val)>::value and
