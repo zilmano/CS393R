@@ -169,6 +169,7 @@ void Navigation::Run() {
   }
 
   drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
+  drive_msg_.velocity = drive_msg_.velocity < 0.0 ? 0.0 : drive_msg_.velocity;
   drive_pub_.publish(drive_msg_);
   latency_tracker.add_controls(VelocityControlCommand{drive_msg_.velocity, ros::Time::now().toSec()});
 }
