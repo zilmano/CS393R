@@ -15,7 +15,7 @@ namespace PhysicsConsts{
 namespace Assignment0{
     const static float target_dis = 2.0f;
     const static float timeframe = 1.0f/20.0f;
-    const static unsigned long discard_latency_num = 6;
+    const static unsigned long discard_latency_num = 1;
     const static unsigned long runavg_latency_num = 6;
 }
 
