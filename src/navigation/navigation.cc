@@ -67,7 +67,9 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     nav_complete_(true),
     nav_goal_loc_(0, 0),
     nav_goal_angle_(0),
-    is_initloc_inited{false}{
+    is_initloc_inited{false},
+    latency_tracker{0.1f},
+    latency_size{0}{
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -103,10 +105,26 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
     robot_angle_ = angle;
     robot_vel_ = vel;
     robot_omega_ = ang_vel;
+
+    latency_tracker.add_measurements(VelocityMeasurement{vel.norm(), ros::Time::now().toSec()});
 }
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
                                    double time) {
+}
+
+
+float Navigation::compute_dis2stop(){
+    float latency = latency_tracker.estimate_latency();
+    float actuation_latency = latency * PhysicsConsts::act_latency_portion;
+    float curr_spd = robot_vel_.norm();
+    float dis2stop = curr_spd * actuation_latency;
+
+    for (curr_spd -= PhysicsConsts::max_acc * Assignment0::timeframe; curr_spd >= 0.0;
+    curr_spd -= PhysicsConsts::max_acc * Assignment0::timeframe)
+        dis2stop += curr_spd * Assignment0::timeframe;
+
+    return dis2stop;
 }
 
 void Navigation::Run() {
@@ -120,14 +138,15 @@ void Navigation::Run() {
   std::cout << a << std::endl;
    */
 
-  float c_p = 0.75f;
-  float epsilon = 0.045f;
+  float c_p = 0.01f;
+  float epsilon = 0.005f;
 
-  auto spd_inc = Assignment0::timeframe * PhysicsConsts::max_acc;
+  auto spd_inc = latency_tracker.estimate_latency() * PhysicsConsts::max_acc;
 
   // Distance to stop {Vt^2 - V0^2 = 2ad}
-  auto v0_norm = robot_vel_.norm();
-  auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
+  // auto v0_norm = robot_vel_.norm();
+  // auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
+  float dis2stop = compute_dis2stop() + epsilon;
 
   // Current Distance
   auto curr_dist = (robot_loc_ - init_loc).norm();
@@ -149,6 +168,7 @@ void Navigation::Run() {
   }
 
   drive_pub_.publish(drive_msg_);
+  latency_tracker.add_controls(VelocityControlCommand{drive_msg_.velocity, ros::Time::now().toSec()});
 }
 
 }  // namespace navigation

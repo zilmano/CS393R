@@ -22,6 +22,8 @@
 #include <vector>
 
 #include "eigen3/Eigen/Dense"
+#include "latencytracking.hpp"
+#include "constants.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -29,17 +31,6 @@
 namespace ros {
   class NodeHandle;
 }  // namespace ros
-
-namespace PhysicsConsts{
-    const static float max_acc = 3.0f;
-    const static float max_vel = 1.0f;
-}
-
-namespace Assignment0{
-    const static float target_dis = 2.0f;
-    const static float timeframe = 1.0f/20.0f;
-
-}
 
 namespace navigation {
 
@@ -103,6 +94,11 @@ class Navigation {
   Eigen::Vector2f init_loc;
   bool is_initloc_inited;
 
+  LatencyTracking<VelocityMeasurement, VelocityControlCommand, true> latency_tracker;
+  unsigned long latency_size;
+
+  float compute_dis2stop();
+  float get_latency();
 
 };
 

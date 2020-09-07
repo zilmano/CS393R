@@ -1,5 +1,5 @@
 PROJECT(reference_car)
-CMAKE_MINIMUM_REQUIRED(VERSION 3.12)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 
 MESSAGE(STATUS "Compiling Reference Car Localization + Navigation")
 MESSAGE(STATUS "Using compiler: ${CMAKE_CXX_COMPILER}")
@@ -57,7 +57,8 @@ TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation_main.cc
-                        src/navigation/navigation.cc)
+                        src/navigation/navigation.cc
+        )
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 target_include_directories(navigation
         PUBLIC
