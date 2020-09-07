@@ -68,7 +68,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     nav_goal_loc_(0, 0),
     nav_goal_angle_(0),
     is_initloc_inited{false},
-    latency_tracker{0.1f},
+    latency_tracker{0.05f},
     latency_size{0}{
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
@@ -171,6 +171,7 @@ void Navigation::Run() {
   drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
   drive_msg_.velocity = drive_msg_.velocity < 0.0 ? 0.0 : drive_msg_.velocity;
   drive_pub_.publish(drive_msg_);
+  printf("Latency %.2f, latency samples %ld\n", latency_tracker.estimate_latency(), latency_tracker.get_alllatencies().size());
   latency_tracker.add_controls(VelocityControlCommand{drive_msg_.velocity, ros::Time::now().toSec()});
 }
 
