@@ -117,12 +117,13 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
 float Navigation::compute_dis2stop(){
     float latency = latency_tracker.estimate_latency();
     float actuation_latency = latency * PhysicsConsts::act_latency_portion;
+    float observation_latency = latency - actuation_latency;
     float curr_spd = robot_vel_.norm();
     float dis2stop = curr_spd * actuation_latency;
 
-    for (curr_spd -= PhysicsConsts::max_acc * Assignment0::timeframe; curr_spd >= 0.0;
-    curr_spd -= PhysicsConsts::max_acc * Assignment0::timeframe)
-        dis2stop += curr_spd * Assignment0::timeframe;
+    for (curr_spd -= PhysicsConsts::max_acc * observation_latency; curr_spd >= 0.0;
+    curr_spd -= PhysicsConsts::max_acc * observation_latency)
+        dis2stop += curr_spd * latency;
 
     return dis2stop;
 }
@@ -167,6 +168,7 @@ void Navigation::Run() {
       drive_msg_.velocity = curr_spd;
   }
 
+  drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
   drive_pub_.publish(drive_msg_);
   latency_tracker.add_controls(VelocityControlCommand{drive_msg_.velocity, ros::Time::now().toSec()});
 }
