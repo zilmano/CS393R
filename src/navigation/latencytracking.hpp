@@ -36,8 +36,10 @@ public:
 
     void add_controls(const TControl & ctl) {
         if (control_list.size() < NumConcurrentControlInQueue and
-        (control_list.empty() or !is_equal(control_list.back(), ctl)))
+        (control_list.empty() or !is_equal(control_list.back(), ctl))) {
             control_list.emplace_back(ctl);
+            printf("Added new contrl point\n");
+        }
     }
 
     const std::deque<float>& get_alllatencies() { return latency_list;}
