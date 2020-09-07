@@ -123,6 +123,7 @@ float Navigation::compute_dis2stop(){
     for (curr_spd -= PhysicsConsts::max_acc * Assignment0::timeframe; curr_spd >= 0.0;
     curr_spd -= PhysicsConsts::max_acc * Assignment0::timeframe)
         dis2stop += curr_spd * Assignment0::timeframe;
+    dis2stop += (curr_spd + PhysicsConsts::max_acc * Assignment0::timeframe) * Assignment0::timeframe;
 
     return dis2stop;
 }
