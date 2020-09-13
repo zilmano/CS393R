@@ -31,6 +31,7 @@
 #include "gflags/gflags.h"
 #include "eigen3/Eigen/Dense"
 #include "eigen3/Eigen/Geometry"
+#include "eigen3/Eigen/Core"
 #include "gflags/gflags.h"
 #include "geometry_msgs/Pose2D.h"
 #include "geometry_msgs/PoseArray.h"
@@ -44,6 +45,9 @@
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
+
+#include "laser_geometry/laser_geometry.h"
+#include "sensor_msgs/PointCloud.h"
 
 #include "navigation.h"
 
@@ -70,6 +74,7 @@ DEFINE_string(map, "maps/GDC1.txt", "Name of vector map file");
 
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
+laser_geometry::LaserProjection laser_projector_;
 Navigation* navigation_ = nullptr;
 
 void LaserCallback(const sensor_msgs::LaserScan& msg) {
@@ -81,8 +86,19 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   // Location of the laser on the robot. Assumes the laser is forward-facing.
   const Vector2f kLaserLoc(0.2, 0);
 
+  // (Oleg TODO: Preliminary, need to debug, with respect to the 0.2 kLaserLoc and see if need to convert to the global coordinate space...)
+  // Convert the LaserScan to a point cloud
+  sensor_msgs::PointCloud pc_msg;
+  laser_projector_.projectLaser(msg, pc_msg);
+  // Oleg: Why the Funck is it static??
   static vector<Vector2f> point_cloud_;
-  // TODO Convert the LaserScan to a point cloud
+  point_cloud_.clear();
+
+  for (size_t i = 0; i < pc_msg.points.size(); ++i) {
+	  Vector2f new_point(pc_msg.points[i].x,pc_msg.points[i].y);
+	  point_cloud_.push_back(new_point);
+  }
+
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
 }
