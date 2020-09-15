@@ -24,6 +24,7 @@
 #include "eigen3/Eigen/Dense"
 #include "latencytracking.hpp"
 #include "constants.h"
+#include "plotpublisher.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -91,14 +92,18 @@ class Navigation {
   // Navigation goal angle.
   float nav_goal_angle_;
 
+  // Added member variables
+
+  PlotPublisher plot_publisher_;
   Eigen::Vector2f init_loc;
   bool is_initloc_inited;
 
   LatencyTracking<VelocityMeasurement, VelocityControlCommand, true> latency_tracker;
   unsigned long latency_size;
 
+
+  // Added member functions
   float compute_dis2stop();
-  float get_latency();
 
 };
 

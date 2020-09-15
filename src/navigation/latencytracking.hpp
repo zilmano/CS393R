@@ -13,6 +13,8 @@
 #include <xtensor/xmath.hpp>
 #include <xtensor-blas/xlinalg.hpp>
 #include "constants.h"
+#include "plotpublisher.h"
+#include "clock.h"
 
 struct VelocityMeasurement {
     float val;
@@ -27,7 +29,11 @@ struct VelocityControlCommand {
 template<typename TMeasure, typename TControl, bool IsKeepMeasure>
 class LatencyTracking {
 public:
-    explicit LatencyTracking(float tolerance = 0) : tol{tolerance}, is_first{true} {}
+    explicit LatencyTracking(PlotPublisher & pub, float tolerance = 0) :
+    tol{tolerance},
+    is_first{true},
+    plot_publisher_{pub}
+    {}
 
     void add_measurements(const TMeasure & msr) {
         measure_list.emplace_back(msr);
@@ -38,7 +44,14 @@ public:
         if (control_list.size() < NumConcurrentControlInQueue and
         (control_list.empty() or !is_equal(control_list.back(), ctl))) {
             control_list.emplace_back(ctl);
-            printf("Added new contrl point\n");
+            plot_publisher_.publish_named_point("Ctrl Pts", Clock::now(), control_list.size());
+        }
+    }
+
+    void add_controls(const TControl & ctl, PlotPublisher & publisher) {
+        if (control_list.size() < NumConcurrentControlInQueue and
+        (control_list.empty() or !is_equal(control_list.back(), ctl))) {
+            control_list.emplace_back(ctl);
         }
     }
 
@@ -57,6 +70,7 @@ private:
     std::deque<TControl> control_list;
     std::deque<float> latency_list;
     const unsigned long NumConcurrentControlInQueue = 8;
+    PlotPublisher & plot_publisher_;
 
     // Compile-time dispatch with SFINAE
     template<typename TLHS, typename TRHS, typename std::enable_if<std::is_scalar<decltype(TLHS::val)>::value and
@@ -90,6 +104,7 @@ private:
         }
         if (!is_first and latency_list.size() > Assignment0::runavg_latency_num)
             latency_list.pop_front();
+        plot_publisher_.publish_named_point("Latency list", Clock::now(), latency_list.size());
     }
 };
 
