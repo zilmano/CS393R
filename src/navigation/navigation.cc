@@ -37,6 +37,7 @@
 #include "xtensor/xbuffer_adaptor.hpp"
 #include "xtensor/xio.hpp"
 #include <vector>
+#include "clock.h"
 
 using Eigen::Vector2f;
 using amrl_msgs::AckermannCurvatureDriveMsg;
@@ -67,8 +68,9 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     nav_complete_(true),
     nav_goal_loc_(0, 0),
     nav_goal_angle_(0),
+    plot_publisher_{n},
     is_initloc_inited{false},
-    latency_tracker{0.05f},
+    latency_tracker{plot_publisher_, 0.05f},
     latency_size{0}{
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
@@ -78,6 +80,7 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
   global_viz_msg_ = visualization::NewVisualizationMessage(
       "map", "navigation_global");
   InitRosHeader("base_link", &drive_msg_.header);
+  Clock::now();
 }
 
 void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
@@ -107,6 +110,11 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
     robot_omega_ = ang_vel;
 
     latency_tracker.add_measurements(VelocityMeasurement{vel.norm(), ros::Time::now().toSec()});
+
+    float curr_time = Clock::now();
+
+    plot_publisher_.publish_named_point("Obsrv Dist", curr_time, (loc - init_loc).norm());
+    plot_publisher_.publish_named_point("Obsrv Spd", curr_time, vel.norm());
 }
 
 void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
@@ -125,6 +133,9 @@ float Navigation::compute_dis2stop(){
     curr_spd -= PhysicsConsts::max_acc * observation_latency)
         dis2stop += curr_spd * latency;
 
+
+    plot_publisher_.publish_named_point("Est Ltcy", Clock::now(), latency);
+
     return dis2stop;
 }
 
@@ -141,7 +152,6 @@ void Navigation::Run() {
 
   float c_p = 0.01f;
   float epsilon = 0.005f;
-
   auto spd_inc = latency_tracker.estimate_latency() * PhysicsConsts::max_acc;
 
   // Distance to stop {Vt^2 - V0^2 = 2ad}
@@ -152,7 +162,6 @@ void Navigation::Run() {
   // Current Distance
   auto curr_dist = (robot_loc_ - init_loc).norm();
   auto curr_spd = robot_vel_.norm();
-  printf("Current dist %f, current spd %f\n", curr_dist, curr_spd);
   drive_msg_.curvature = 0;
 
   if (curr_dist >= Assignment0::target_dis or !is_initloc_inited){
@@ -171,8 +180,11 @@ void Navigation::Run() {
   drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
   drive_msg_.velocity = drive_msg_.velocity < 0.0 ? 0.0 : drive_msg_.velocity;
   drive_pub_.publish(drive_msg_);
-  printf("Latency %.2f, latency samples %ld\n", latency_tracker.estimate_latency(), latency_tracker.get_alllatencies().size());
-  latency_tracker.add_controls(VelocityControlCommand{drive_msg_.velocity, ros::Time::now().toSec()});
+
+  double curr_time = ros::Time::now().toSec();
+  //printf("Latency %.2f, latency samples %ld\n", latency_tracker.estimate_latency(), latency_tracker.get_alllatencies().size());
+  latency_tracker.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
+  plot_publisher_.publish_named_point("Ctrl cmd", Clock::now(), drive_msg_.velocity);
 }
 
 }  // namespace navigation

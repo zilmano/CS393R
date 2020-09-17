@@ -58,6 +58,8 @@ TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation_main.cc
                         src/navigation/navigation.cc
+                        src/navigation/plotpublisher.cpp
+                        src/navigation/clock.cpp
         )
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 target_include_directories(navigation
