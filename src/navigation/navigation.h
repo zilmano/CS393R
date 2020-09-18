@@ -25,6 +25,7 @@
 #include "latencytracking.hpp"
 #include "constants.h"
 #include "plotpublisher.h"
+#include "world.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -69,6 +70,14 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
+  //Added puclic methods go in this section
+  void Test();
+  // Added private methods go in this section
+ private:
+
+   float ComputeDis2Stop();
+   std::vector<Eigen::Vector2f> ConvertLaserCloudToOdomFrame();
+
 
  private:
 
@@ -92,19 +101,22 @@ class Navigation {
   // Navigation goal angle.
   float nav_goal_angle_;
 
-  // Added member variables
+  // Added member variables start here
 
+  std::vector<Eigen::Vector2f> laser_pcloud_local_frame_;
   PlotPublisher plot_publisher_;
-  Eigen::Vector2f init_loc;
-  bool is_initloc_inited;
-
-  LatencyTracking<VelocityMeasurement, VelocityControlCommand, true> latency_tracker;
-  unsigned long latency_size;
-
-
-  // Added member functions
-  float compute_dis2stop();
-
+  Eigen::Vector2f init_loc_;
+  bool is_initloc_inited_;
+  
+  // $epresentation of our world.
+  World world_;
+    
+  // Latency management
+  LatencyTracking<VelocityMeasurement, VelocityControlCommand, true> latency_tracker_;
+  unsigned long latency_size_;
+  
+  
+  
 };
 
 }  // namespace navigation
