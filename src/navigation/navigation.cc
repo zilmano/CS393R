@@ -125,13 +125,22 @@ void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
     laser_pcloud_local_frame_ = cloud;
 }
 
+
 float Navigation::ComputeDis2Stop(){
     float latency = latency_tracker_.estimate_latency();
     float actuation_latency = latency * PhysicsConsts::act_latency_portion;
     float observation_latency = latency - actuation_latency;
-    float curr_spd = robot_vel_.norm();
-    float dis2stop = curr_spd * actuation_latency;
+    float curr_spd = robot_vel_.norm();     // current speed of robot based on odometry reading
+    float dis2stop = curr_spd * actuation_latency;      // distance that the robot travels over a given latency time period
 
+    // TODO for NATHAN:
+    // Have to update distance to stop to account for arc length (include curvature into measurements)
+
+    /* starting at the current observed speed (odometry) minus the speed lossed over the time period of observation latency, until the current speed is less than 0,
+        decrease the current speed by the amount of speed that can be lossed over a time period of observation latency
+
+        The total distance to stop is the sum of distances that the car travels at each given speed observed during the course of complete deceleration
+    */
     for (curr_spd -= PhysicsConsts::max_acc * observation_latency; curr_spd >= 0.0;
     curr_spd -= PhysicsConsts::max_acc * observation_latency)
         dis2stop += curr_spd * latency;

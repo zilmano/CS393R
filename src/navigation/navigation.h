@@ -108,7 +108,7 @@ class Navigation {
   Eigen::Vector2f init_loc_;
   bool is_initloc_inited_;
   
-  // $epresentation of our world.
+  // $representation of our world.
   World world_;
     
   // Latency management

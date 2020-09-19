@@ -31,4 +31,8 @@ namespace Assignment0{
     const static unsigned long runavg_latency_num = 6;
 }
 
+namespace Assignment1{
+    const static float target_dis = 4.0f;
+}
+
 #endif //REPO_CONSTANTS_H
