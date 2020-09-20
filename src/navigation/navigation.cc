@@ -174,6 +174,8 @@ void Navigation::Run() {
   auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
 
   float dis2stop = ComputeDis2Stop() + epsilon;
+
+  // target location is always a defined distance directly in front of the robot
   auto target_loc = driver.calculate_target_location(robot_loc_, robot_angle_);
 
   // Current Distance
