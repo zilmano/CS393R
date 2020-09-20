@@ -133,9 +133,6 @@ float Navigation::ComputeDis2Stop(){
     float curr_spd = robot_vel_.norm();     // current speed of robot based on odometry reading
     float dis2stop = curr_spd * actuation_latency;      // distance that the robot travels over a given latency time period
 
-    // TODO for NATHAN:
-    // Have to update distance to stop to account for arc length (include curvature into measurements)
-
     /* starting at the current observed speed (odometry) minus the speed lossed over the time period of observation latency, until the current speed is less than 0,
         decrease the current speed by the amount of speed that can be lossed over a time period of observation latency
 
@@ -172,41 +169,28 @@ void Navigation::Run() {
   // Milestone 1 will fill out part of this class.
   // Milestone 3 will complete the rest of navigation.
 
-  // Speed increment
-  /*
-  auto a = xt::adapt(robot_loc_.data(), 2, xt::no_ownership(), std::vector<int>{2});
-  std::cout << a << std::endl;
-   */
-
   float c_p = 0.01f;
   float epsilon = 0.005f;
   auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
 
-  // Distance to stop {Vt^2 - V0^2 = 2ad}
-  // auto v0_norm = robot_vel_.norm();
-  // auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
   float dis2stop = ComputeDis2Stop() + epsilon;
+  auto target_loc = driver.calculate_target_location(robot_loc_, robot_angle_);
 
   // Current Distance
-  auto curr_dist = (robot_loc_ - init_loc_).norm();
+  auto curr_dist = (target_loc - robot_loc_).norm();
   auto curr_spd = robot_vel_.norm();
-  drive_msg_.curvature = 0;
 
-  if (curr_dist >= Assignment0::target_dis or !is_initloc_inited_){
-      drive_msg_.velocity = 0;
-  } else if (curr_dist + dis2stop >= Assignment0::target_dis) {
-      curr_spd -= spd_inc + (Assignment0::target_dis - curr_dist) * c_p;
-      drive_msg_.velocity = curr_spd;
-  } else if (curr_spd >= PhysicsConsts::max_vel) {
-      curr_spd = PhysicsConsts::max_vel;
-      drive_msg_.velocity = curr_spd;
-  } else {
-      curr_spd += spd_inc;
-      drive_msg_.velocity = curr_spd;
-  }
+  /**
+   * How is curvature going to be integrated 
+   */
+  float desired_curvature = 0;
 
-  drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
-  drive_msg_.velocity = drive_msg_.velocity < 0.0 ? 0.0 : drive_msg_.velocity;
+  driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p);
+  
+  drive_msg_.velocity = driver.get_velocity();
+  drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
+  drive_msg_.curvature = desired_curvature;
+  
   drive_pub_.publish(drive_msg_);
 
   double curr_time = ros::Time::now().toSec();

@@ -115,7 +115,8 @@ class Navigation {
   LatencyTracking<VelocityMeasurement, VelocityControlCommand, true> latency_tracker_;
   unsigned long latency_size_;
   
-  
+  // speed and turning controls
+  DrivingControls driver;
   
 };
 
