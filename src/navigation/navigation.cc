@@ -72,9 +72,12 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     nav_goal_angle_(0),
     plot_publisher_{n},
     is_initloc_inited_{false},
-    world_(SamplingConsts::downsample_rate_space, SamplingConsts::downsample_rate_time),
+    world_{SamplingConsts::downsample_rate_space, 
+           SamplingConsts::downsample_rate_time},
     latency_tracker_{plot_publisher_, 0.05f},
-    latency_size_{0} {
+    latency_size_{0} 
+    state_estimator_{PhysicsConsts::act_latency_portion*PhysicsConsts::default_latency,
+	                 (1-PhysicsConsts::act_latency_portion)*PhysicsConsts::default_latency,0}{
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
