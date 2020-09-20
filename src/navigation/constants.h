@@ -7,6 +7,11 @@
 
 #include "xtensor/xtensor.hpp"
 
+namespace GenConsts{
+    const float kEpsilon = 1e-5f;
+    const float step_period = 0.02f;
+}
+
 namespace PhysicsConsts{
     const static float max_acc = 3.0f;
     const static float max_vel = 1.0f;
