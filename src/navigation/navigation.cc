@@ -104,6 +104,7 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
         auto is_loc_nonzero = !init_loc_.isZero();
         if (is_loc_finite and is_loc_nonzero) {
             is_initloc_inited_ = true;
+            ROS_INFO("Init loc %f, %f", init_loc_[0], init_loc_[1]);
             printf("Init loc %f, %f\n", init_loc_[0], init_loc_[1]);
         }
     }
@@ -181,7 +182,7 @@ void Navigation::Run() {
   // Current Distance
   auto curr_dist = (robot_loc_ - init_loc_).norm();
   auto curr_spd = robot_vel_.norm();
-  drive_msg_.curvature = 0;
+  drive_msg_.curvature = -3;
 
   if (curr_dist >= Assignment0::target_dis or !is_initloc_inited_){
       drive_msg_.velocity = 0;
@@ -204,6 +205,12 @@ void Navigation::Run() {
   //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
   latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
   plot_publisher_.publish_named_point("Ctrl cmd", Clock::now(), drive_msg_.velocity);
+  CollisionPlanner cp{world_};
+  auto corners = cp.convert4corner2cspace(1.0);
+  std::cout << corners << std::endl;
+  corners = cp.convert4corner2cspace(-1.0);
+  std::cout << corners << std::endl;
+  exit(-15);
 }
 
 }  // namespace navigation

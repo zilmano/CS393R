@@ -13,7 +13,7 @@ IF(${CMAKE_BUILD_TYPE} MATCHES "Release")
   SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fopenmp -O2 -DNDEBUG")
 ELSEIF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
   MESSAGE(STATUS "Additional Flags for Debug mode")
-  SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -g")
+  SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Og -g")
 ENDIF()
 
 INCLUDE($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
@@ -60,6 +60,8 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/navigation.cc
                         src/navigation/plotpublisher.cpp
                         src/navigation/clock.cpp
+                        src/navigation/pointcloud.cpp
+                        src/navigation/collisionplanner.cpp
         )
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
 target_include_directories(navigation

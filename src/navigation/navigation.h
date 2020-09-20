@@ -26,6 +26,7 @@
 #include "constants.h"
 #include "plotpublisher.h"
 #include "world.h"
+#include "collisionplanner.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H

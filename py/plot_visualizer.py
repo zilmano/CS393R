@@ -24,7 +24,7 @@ def callback(data):
     if init_x < 0:
         init_x = x
     if name not in named_ax:
-        named_ax[name], = named_ax["root"].plot([], "o-", label=name)
+        named_ax[name], = named_ax["root"].plot([], "+-", label=name)
         plt.legend()
     named_x_lists[name].append(x - init_x)
     named_y_lists[name].append(y)

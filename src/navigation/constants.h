@@ -5,6 +5,8 @@
 #ifndef REPO_CONSTANTS_H
 #define REPO_CONSTANTS_H
 
+#include "xtensor/xtensor.hpp"
+
 namespace PhysicsConsts{
     const static float max_acc = 3.0f;
     const static float max_vel = 1.0f;
@@ -21,7 +23,9 @@ namespace CarDims{
 	// OLEG TODO: mesure the car to see if these are correct.
     const static float w = 0.281f;
 	const static float l = 0.535f;
+	const static float wheelbase = 0.324f;
 	const static float default_safety_margin = 0.15f;
+    const static xt::xtensor<float, 2> laser_loc;
 }
 
 namespace Assignment0{
@@ -30,5 +34,6 @@ namespace Assignment0{
     const static unsigned long discard_latency_num = 1;
     const static unsigned long runavg_latency_num = 6;
 }
+
 
 #endif //REPO_CONSTANTS_H
