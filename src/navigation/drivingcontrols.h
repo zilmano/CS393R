@@ -42,20 +42,33 @@ public:
     }
     
     float calculate_current_distance(float curvature, Vector2f robot_location, Vector2f target, float arc_length){
-        return 1 / curvature * calculate_theta(robot_location, target, curvature);
+        float current_distance;
+        if (curvature >= 0){
+            current_distance = 1 / curvature * calculate_theta(robot_location, target, curvature);
+        } else {
+            current_distance = (-1) * 1 / curvature * calculate_theta(robot_location, target, curvature);
+        }
+        
+        return current_distance;
     }
     
     Vector2f calculate_target_location(float arc_length, float curvature, float init_angle, Vector2f center){
         float theta = arc_length * curvature;
-        if (curvature < 0){
-            theta = 2 * M_PI - theta;
-        }
+        float x;
+        float y;
         if (curvature > 10000){
             curvature = 10000;
         }
+        if (curvature < 0){
+            theta = 2 * M_PI - theta;
+            x = center.x() + 1/curvature * cos(init_angle - theta);
+            y = center.y() + 1/curvature * sin(init_angle - theta);
+        }
+        else {
+            x = center.x() + 1/curvature * cos(theta + init_angle);
+            y = center.y() + 1/curvature * sin(theta + init_angle);
+        }
        
-        float x = center.x() + 1/curvature * cos(theta + init_angle);
-        float y = center.y() + 1/curvature * sin(theta + init_angle);
         Vector2f target(x,y);
 
         return target;

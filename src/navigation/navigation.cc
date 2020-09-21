@@ -179,7 +179,7 @@ void Navigation::Run() {
 
   float dis2stop = ComputeDis2Stop() + epsilon;
 
-  float desired_curvature = 1; // determiend by collision planner?
+  float desired_curvature = -1; // determiend by collision planner?
   robot_curvature_ = desired_curvature;      // input from collision planner?
   
   float arc_length_distance = 2;    // input from collision planner?
