@@ -300,7 +300,7 @@ namespace navigation {
         auto curr_spd = robot_vel_.norm();
 
         // update current speed
-        driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p);
+        driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p, target_dist);
         
         drive_msg_.velocity = driver.get_velocity();
         drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
@@ -321,7 +321,7 @@ namespace navigation {
 
         //Test();
         RePlanPath();
-        SetOptimalVelocity(4);
+        SetOptimalVelocity(200);
 
         drive_pub_.publish(drive_msg_);
 

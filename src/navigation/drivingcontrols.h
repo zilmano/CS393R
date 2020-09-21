@@ -27,7 +27,7 @@ class DrivingControls {
 	 */
 public:
     // TOC
-    void update_current_speed(float distance2stop, bool initialloc_init_, float current_speed, float current_distance, float speed_increment, float c_p){
+    void update_current_speed(float distance2stop, bool initialloc_init_, float current_speed, float current_distance, float speed_increment, float c_p, float target){
         if (current_distance <= 0 or !initialloc_init_){
             new_velocity = 0;
         } else if (current_distance <= 0.18) {
