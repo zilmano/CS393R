@@ -118,3 +118,26 @@ float CollisionPlanner::calculate_shortest_collision(float curvature, std::vecto
     }
 
 }
+
+std::vector<float> CollisionPlanner::generate_candidate_paths(float c_step, float min_radius) {
+        std::vector<float> candidates;
+        candidates.push_back(0);
+        c_step = fabs(c_step);
+        if (fabs(c_step) < GenConsts::kEpsilon) {
+            throw "::generate_candidate_paths: c_step must be bigger then zero (by kEpsilon)";
+        }
+        float c = c_step;
+        float r = 1/c;
+        while (r >= min_radius) {
+            candidates.push_back(-1*c);
+            candidates.push_back(c);
+            c += c_step;
+            r = 1/c;
+        }
+        return candidates;
+} 
+
+float CollisionPlanner::calc_dist_on_curve_for_angle(float curvature, float angle) {
+    // OLEG TODO:: to impelemnt!
+    return angle;
+}
