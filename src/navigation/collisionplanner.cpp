@@ -141,3 +141,26 @@ float CollisionPlanner::calc_dist_on_curve_for_angle(float curvature, float angl
     // OLEG TODO:: to impelemnt!
     return angle;
 }
+
+float CollisionPlanner::calculate_shortest_collision_flat(std::vector<Eigen::Vector2f> & pts) {
+    std::vector<float> offending_distances;
+    float w = CarDims::w + CarDims::default_safety_margin * 2;
+    offending_distances.reserve(pts.size());
+    for (auto & pt: pts)
+        if (pt[0] > 0 && fabsf(pt[1]) < w / 2.f)
+            offending_distances.emplace_back(pt[0]);
+    if (!offending_distances.empty()) return *std::min(offending_distances.begin(), offending_distances.end());
+    else return INFINITY;
+}
+
+float CollisionPlanner::calculate_shortest_translational_displacement(
+        float curvature, std::vector<Eigen::Vector2f> & pts) {
+    if (fabsf(curvature) < GenConsts::kEpsilon)
+        return calculate_shortest_collision_flat(pts);
+    else {
+        float R = 1.f / curvature;
+        auto collisions = select_potential_collision(curvature, pts);
+        float theta = calculate_shortest_collision(curvature, collisions);
+        return R * theta;
+    }
+}

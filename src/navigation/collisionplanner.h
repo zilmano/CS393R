@@ -23,11 +23,13 @@ public:
     std::vector<xt::xtensor<float, 1>> select_potential_collision(float curvature, std::vector<Eigen::Vector2f> & pts);
 
     float calculate_shortest_collision(float curvature, std::vector<xt::xtensor<float, 1>> & colliding_pts);
+    float calculate_shortest_collision_flat(std::vector<Eigen::Vector2f> & pts);
     
     std::vector<float> generate_candidate_paths(float c_step=0.005, float min_radius=2*CarDims::l);
 
     // OLEG TODO:: to impelement!
     float calc_dist_on_curve_for_angle(float curvature, float angle);
+    float calculate_shortest_translational_displacement(float curvature, std::vector<Eigen::Vector2f> & pts);
 
 
 private:
