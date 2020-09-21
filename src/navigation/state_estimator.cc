@@ -69,17 +69,12 @@ void StateEstimator::update_estimation(const Vector2f& observation_loc, float ob
     double actuation_step_period_ratio = (actuation_latency_ / GenConsts::step_period);
     double actuation_to_step_period_skew =
             (actuation_step_period_ratio - floor(actuation_step_period_ratio));
-    /*std::cout << "    actuation_latecny " << actuation_latency_;
-    std::cout << "    observation_latecny " << observation_latency_;
-    std::cout << "    actuation skew ratio " << actuation_to_step_period_skew;
-    std::cout << "    actuation period ratio " << actuation_step_period_ratio << std::endl;
-    */
+   
     // OLEG TODO: remove this is for debug
     auto print_pose =  [](const PoseSE2& p) {
               std::cout << " x:" << p.loc.x() << " y:" << p.loc.y() << " angle:" << p.angle;
     };
-    std::cout << "    going over actuation commands at time " << curr_time << std::endl;
-    //
+    
     for (std::list<ControlCommand>::const_iterator cmd_it = cmd_quasi_queue_.begin();
          cmd_it != cmd_quasi_queue_.end();) {
              double cmd_actuation_time = cmd_it->timestamp + actuation_latency_;
@@ -90,12 +85,7 @@ void StateEstimator::update_estimation(const Vector2f& observation_loc, float ob
                      pose_est_index_of_curr_step_ = pe_index;
                  }
                  PoseSE2 delta_pose = pose_change_one_step_forward(cmd_it->vel, cmd_it->c);
-                 std::cout << "       Cmd-> v:" << cmd_it->vel << ", angle:" << cmd_it->c
-                          << ", ts:" << cmd_it->timestamp << ", actuation ts:" << cmd_actuation_time
-                          << "  | Delta_pose -> ";
-                 print_pose(delta_pose);
-                 std::cout << std::endl;
-
+                 
                  pose_estimates_.push_back(
                             accumulated_pose +
                             delta_pose*(1-actuation_to_step_period_skew));
