@@ -257,5 +257,87 @@ namespace navigation {
         latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
         plot_publisher_.publish_named_point("Ctrl cmd vel", Clock::now(), drive_msg_.velocity);
         plot_publisher_.publish_named_point("Ctrl cmd c", Clock::now(), drive_msg_.curvature);
+
+        /*float c_p = 0.01f;
+        float epsilon = 0.005f;
+        auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
+        // Distance to stop {Vt^2 - V0^2 = 2ad}
+        // auto v0_norm = robot_vel_.norm();
+        // auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
+        float dis2stop = ComputeDis2Stop() + epsilon;
+        // Current Distance
+        auto curr_dist = (robot_loc_ - init_loc_).norm();
+        auto curr_spd = robot_vel_.norm();
+        if (curr_dist >= Assignment0::target_dis or !is_initloc_inited_) {
+            drive_msg_.velocity = 0;
+        } else if (curr_dist + dis2stop >= Assignment0::target_dis) {
+            curr_spd -= spd_inc + (Assignment0::target_dis - curr_dist) * c_p;
+            drive_msg_.velocity = curr_spd;
+        } else if (curr_spd >= PhysicsConsts::max_vel) {
+            curr_spd = PhysicsConsts::max_vel;
+            drive_msg_.velocity = curr_spd;
+        } else {
+            curr_spd += spd_inc;
+            drive_msg_.velocity = curr_spd;
+        }
+        drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
+        drive_msg_.velocity = drive_msg_.velocity < 0.0 ? 0.0 : drive_msg_.velocity;
+        drive_msg_.velocity = 0.0f;
+        drive_pub_.publish(drive_msg_);
+        double curr_time = ros::Time::now().toSec();
+        //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
+        //latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
+        //plot_publisher_.publish_named_point("Ctrl cmd", Clock::now(), drive_msg_.velocity);
+        */
+
+        /*
+        visualization::ClearVisualizationMsg(local_viz_msg_);
+        float curvature = 0.5f, extending_radius = 5.f;
+        //float offset_omega = curvature > 0 ? (-M_PI / 2.f) : (M_PI / 2.f);
+        CollisionPlanner cp{world_};
+        auto corner_params = cp.convert4corner2cspace(curvature);
+        for (int i = 0; i < 4; ++i) {
+            visualization::DrawArc(Vector2f{0, 1.0 / curvature}, corner_params(i, 0), corner_params(i, 1),
+                                   corner_params(i, 1) + extending_radius, 0x0000FFFF, local_viz_msg_);
+        }
+        auto w = CarDims::w + CarDims::default_safety_margin * 2;
+        auto l = CarDims::l + CarDims::default_safety_margin * 2;
+        Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
+        Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
+        visualization::DrawLine(corner1, corner2, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner2, corner3, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner3, corner4, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner4, corner1, 0x000000FF, local_viz_msg_);
+        if (!laser_pcloud_local_frame_.empty()) {
+            auto coll = cp.select_potential_collision(curvature, laser_pcloud_local_frame_);
+           //for (auto &pt : coll) {
+                //visualization::DrawPoint(Vector2f{pt[0], pt[1]}, 0x00FF00FF, local_viz_msg_);
+           //     float start = fmin(offset_omega, pt(1));
+           //     float end = fmax(offset_omega, pt(1));
+           //     visualization::DrawArc(Vector2f{0, 1.0 / curvature}, pt(0), start, end, 0x00FF00FF, local_viz_msg_);
+           // }
+           // auto steps = 10;
+           // auto pt1 = coll.front();
+           // auto pt2 = coll.back();
+           // auto inc = (pt2[0] - pt1[0]) / steps;
+           // for (int i = 0; i < steps; ++i){
+           //     float rp = pt1[0] + i * inc;
+           //     float thetap = cp.linear_interpolate_params_wrt_R(pt1, pt2, rp);
+           //     float start = fmin(offset_omega, thetap);
+           //     float end = fmax(offset_omega, thetap);
+           //     visualization::DrawArc(Vector2f{0, 1.0 / curvature}, rp, start, end, 0x00FF00FF, local_viz_msg_);
+           // }
+            float clearance = cp.calculate_shortest_collision(curvature, coll);
+            ROS_INFO("clearance %f", clearance);
+            for (int i = 0; i < 4; ++i) {
+                float start = fmin(corner_params(i, 1), corner_params(i, 1) + clearance);
+                float end = fmax(corner_params(i, 1), corner_params(i, 1) + clearance);
+                visualization::DrawArc(Vector2f{0, 1.0 / curvature}, corner_params(i, 0), start, end,
+                                       0x00FF00FF, local_viz_msg_);
+            }
+            viz_pub_.publish(local_viz_msg_);
+        }*/
     }
 }  // namespace navigation
