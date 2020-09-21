@@ -10,6 +10,7 @@
 namespace GenConsts{
     const float kEpsilon = 1e-5f;
     const float step_period = 0.02f;
+    const float FPL_max_bound = 50;
 }
 
 namespace PhysicsConsts{

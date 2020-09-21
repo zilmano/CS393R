@@ -36,6 +36,7 @@
 #include "xtensor/xadapt.hpp"
 #include "xtensor/xbuffer_adaptor.hpp"
 #include "xtensor/xio.hpp"
+#include "collision_detect_functions.h"
 #include <vector>
 #include <iostream>
 #include "clock.h"
@@ -159,11 +160,82 @@ namespace navigation {
 
     void Navigation::Test() {
         // function for debugging. Fill you test code here and run it from navigation_main (instead of changing Run).
+          std::cout << "This is a test..." << std::endl;
+
+          float r=5;
+          Vector2f circle(0,0);
+          Vector2f point(1,1);
+          std::cout << collision::is_point_in_circle(circle, r, point);
+
+          Vector2f point1(0,4);
+          std::cout << collision::is_point_in_circle(circle, r, point1);
+
+          Vector2f point2(0,5.3);
+          std::cout << collision::is_point_in_circle(circle, r, point2);
+
+          Vector2f point3(4,4);
+          std::cout << collision::is_point_in_circle(circle, r, point3) << std::endl;
+
+          float c = 1/r;
+          Vector2f point4(2.5,0.67);
+          std::cout << collision::calc_distance_on_curve_to_point(c, point4) << std::endl;
+
+          //float r_out=6;
+
+          //is_point_in_path(0);
+
+          //throw "Done.";
     }
     
     // Oleg TODO:: move this function to the collision planner.
-
     float Navigation::RePlanPath() {
+            std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths();
+            float best_c = 0;
+            float best_fpl = 0;
+            std::cout << "RePlan  " << std::endl << "--------------";
+            for (size_t i = 0; i < candidate_curvatures.size(); ++i) {
+                float candidate = candidate_curvatures[i];
+                std::cout << "    candidate:  " << candidate << std::endl;
+                auto colliding_points =
+                        collision_planner_.select_potential_collision(candidate, laser_pcloud_local_frame_);
+                if (colliding_points.empty()) {
+                    std::cout << "    colliding points empty." << std::endl;
+                    best_c = candidate;
+                    break;
+                }
+                else {
+                    float fpl;
+                    if (fabs(candidate) < GenConsts::kEpsilon) {
+                        fpl = collision::check_collision_curvature_zero(laser_pcloud_local_frame_);
+                        std::cout << "    C==0" << std::endl;
+
+                    } else {
+                        float angle = collision_planner_.calculate_shortest_collision(candidate, colliding_points);
+                        fpl = (1/candidate)*angle;
+                    }
+                    if (fabs(fpl-10) < 0.5) {
+                        if (fabs(candidate) < GenConsts::kEpsilon) {
+                            std::cout << "Curve Zero is clear."  << std::endl;
+                        }
+                        best_c = candidate;
+                        break;
+                    }
+                    std::cout << "       FPL:  " << fpl << std::endl;
+                    if (fpl > best_fpl) {
+                        std::cout << "       Setting as best candidate." << fpl << std::endl;
+                        best_fpl = fpl;
+                       best_c = candidate;
+                    }
+                }
+            }
+            std::cout << std::endl  << std::endl <<  std::endl;
+            drive_msg_.curvature = best_c;
+            return best_c;
+        }
+
+
+
+    /*float Navigation::RePlanPath_Test() {
         std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths();
         float best_c = 0;
         float best_fpl =  std::numeric_limits<float>::infinity();
@@ -186,7 +258,7 @@ namespace navigation {
         }
         drive_msg_.curvature = best_c;
         return best_c;
-    }
+    }*/
 
     float Navigation::SetOptimalVelocity(float target_dist) {
         float c_p = 0.01f;
@@ -242,8 +314,9 @@ namespace navigation {
         std::cout << a << std::endl;
          */
 
-        //RePlanPath();
-        //SetOptimalVelocity();
+        //Test();
+        RePlanPath();
+        SetOptimalVelocity(200);
 
         //drive_pub_.publish(drive_msg_);
 
