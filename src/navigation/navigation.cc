@@ -208,84 +208,12 @@ namespace navigation {
         // auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
         float dis2stop = ComputeDis2Stop() + epsilon;
 
-        // Current Distance
-        auto curr_dist = (robot_loc_ - init_loc_).norm();
-        auto curr_spd = robot_vel_.norm();
-        target_dist = target_dist > 0 ? target_dist : Assignment0::target_dis;
-
-        if (curr_dist >= target_dist or !is_initloc_inited_) {
-            drive_msg_.velocity = 0;
-        } else if (curr_dist + dis2stop >= target_dist) {
-            curr_spd -= spd_inc + (target_dist - curr_dist) * c_p;
-            drive_msg_.velocity = curr_spd;
-        } else if (curr_spd >= PhysicsConsts::max_vel) {
-            curr_spd = PhysicsConsts::max_vel;
-            drive_msg_.velocity = curr_spd;
-        } else {
-            curr_spd += spd_inc;
-            drive_msg_.velocity = curr_spd;
-        }
-
-        drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
-        drive_msg_.velocity = drive_msg_.velocity < 0.0 ? 0.0 : drive_msg_.velocity;
-        //drive_msg_.velocity = 0.0f;
-        //drive_pub_.publish(drive_msg_);
-
-        //double curr_time = ros::Time::now().toSec();
-        //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
-        //latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
-        //plot_publisher_.publish_named_point("Ctrl cmd", Clock::now(), drive_msg_.velocity);
-
-        return drive_msg_.velocity;
-    }
-
-    void Navigation::Test() {
-        // function for debugging. Fill you test code here and run it from navigation_main (instead of changing Run).
-    }
-    
-    // Oleg TODO:: move this function to the collision planner.
-
-    float Navigation::RePlanPath() {
-        std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths();
-        float best_c = 0;
-        float best_fpl =  std::numeric_limits<float>::infinity();
-        for (size_t i = 0; i < candidate_curvatures.size(); ++i) {
-            float candidate = candidate_curvatures[i];
-            auto colliding_points =
-                    collision_planner_.select_potential_collision(candidate, laser_pcloud_local_frame_);
-            if (colliding_points.empty()) {
-                best_c = candidate;
-                break;
-            }
-            else {
-                float angle = collision_planner_.calculate_shortest_collision(candidate, colliding_points);
-                float fpl = collision_planner_.calc_dist_on_curve_for_angle(candidate, angle);
-                if (fpl < best_fpl) {
-                   best_fpl = fpl;
-                   best_c = candidate;
-                }
-            }
-        }
-        drive_msg_.curvature = best_c;
-        return best_c;
-    }
-
-    float Navigation::SetOptimalVelocity(float target_dist, float curv) {
-        float c_p = 0.01f;
-        float epsilon = 0.005f;
-        auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
-
-        // Distance to stop {Vt^2 - V0^2 = 2ad}
-        // auto v0_norm = robot_vel_.norm();
-        // auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
-        float dis2stop = ComputeDis2Stop() + epsilon;
-
         // curvature determined by collision planner 
-        desired_curvature = curv;
-        robot_curvature_ = curv;      
+        float desired_curvature = RePlanPath();
+        robot_curvature_ = RePlanPath();      
         
         // curvature determined by collision planner
-        float arc_length_distance = target_dis;   
+        float arc_length_distance = target_dist;   
         
         // if the curvature changes, a new "target location" is created. The center of turning will need to be updated.
         if (desired_curvature != robot_curvature_){
@@ -329,5 +257,5 @@ namespace navigation {
         latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
         plot_publisher_.publish_named_point("Ctrl cmd vel", Clock::now(), drive_msg_.velocity);
         plot_publisher_.publish_named_point("Ctrl cmd c", Clock::now(), drive_msg_.curvature);
-
+    }
 }  // namespace navigation
