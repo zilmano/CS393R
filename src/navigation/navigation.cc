@@ -242,10 +242,10 @@ namespace navigation {
         std::cout << a << std::endl;
          */
 
-        RePlanPath();
-        SetOptimalVelocity();
+        //RePlanPath();
+        //SetOptimalVelocity();
 
-        drive_pub_.publish(drive_msg_);
+        //drive_pub_.publish(drive_msg_);
 
         //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
         double curr_time = ros::Time::now().toSec();
@@ -355,6 +355,39 @@ namespace navigation {
 
             viz_pub_.publish(local_viz_msg_);
         }*/
+
+        visualization::ClearVisualizationMsg(local_viz_msg_);
+        float curvature = -0.5f;
+        auto corner_params = collision_planner_.convert4corner2cspace(curvature);
+
+        auto w = CarDims::w + CarDims::default_safety_margin * 2;
+        auto l = CarDims::l + CarDims::default_safety_margin * 2;
+        Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
+        Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
+        visualization::DrawLine(corner1, corner2, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner2, corner3, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner3, corner4, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner4, corner1, 0x000000FF, local_viz_msg_);
+
+        if (!laser_pcloud_local_frame_.empty()) {
+            auto coll = collision_planner_.select_potential_collision(curvature, laser_pcloud_local_frame_);
+
+
+            float clearance = collision_planner_.calculate_shortest_collision(curvature, coll);
+            printf("clearance %f\n", clearance);
+
+            for (int i = 0; i < 4; ++i) {
+                float start = fmin(corner_params(i, 1), corner_params(i, 1) + clearance);
+                float end = fmax(corner_params(i, 1), corner_params(i, 1) + clearance);
+                visualization::DrawArc(Vector2f{0, 1.0 / curvature}, corner_params(i, 0), start, end,
+                                       0x00FF00FF, local_viz_msg_);
+
+            }
+
+            viz_pub_.publish(local_viz_msg_);
+        }
 
     }
 

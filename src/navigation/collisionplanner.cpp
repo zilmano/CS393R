@@ -10,6 +10,7 @@
 #include "xtensor/xmath.hpp"
 #include "xtensor/xadapt.hpp"
 #include "xtensor-blas/xlinalg.hpp"
+#include "eigen3/Eigen/Dense"
 
 CollisionPlanner::CollisionPlanner(World &pt_cloud) :
         point_cloud_{pt_cloud} {}
@@ -43,13 +44,21 @@ xt::xtensor<float, 2> CollisionPlanner::convert4corner2cspace(float curvature) {
     return corner_params;
 }
 
-xt::xtensor<float, 1> CollisionPlanner::convert_pts2cspace(const xt::xtensor<float, 1> &pt, float curvature) {
+xt::xtensor<float, 1> CollisionPlanner::convert_pts2cspace(const xt::xtensor<float, 1> &pt, float curvature, bool debug=false) {
     float R = 1.f / curvature;
-    float offset_omega = curvature > 0 ? (-M_PI / 2.f) : (M_PI / 2.f);
+    float offset_omega = curvature > 0 ? (-M_PI / 2.f) : (M_PI / 2.f - M_PI * 2);
     xt::xtensor<float, 1> pt_params{0.0, 0.0};
     xt::xtensor<float, 1> center{0, R};
+    float init_theta = atanf(pt[0] / (R - pt[1]));
+    if (debug) {
+        printf("%f/%f->%f\n", pt[0], (R - pt[1]), init_theta);
+    }
+    if (R > 0 && init_theta < 0 && R - pt[1] < 0) init_theta += M_PI;
+    else if (R > 0 && init_theta > 0 && R - pt[1] < 0) init_theta += M_PI;
+    else if (R < 0 && init_theta < 0 && R - pt[1] > 0) init_theta += M_PI;
+    else if (R < 0 && init_theta > 0 && R - pt[1] > 0) init_theta += M_PI;
     pt_params[0] = xt::linalg::norm(pt - center);
-    pt_params[1] = atanf(pt[0] / (R - pt[1])) + offset_omega;
+    pt_params[1] = init_theta + offset_omega;
     return pt_params;
 }
 
@@ -69,15 +78,17 @@ CollisionPlanner::select_potential_collision(float curvature, std::vector<Eigen:
     for (auto &pt : pts) {
         xt::xtensor<float, 1> xt_pt = xt::adapt(pt.data(), {2});
         auto pt_param = convert_pts2cspace(xt_pt, curvature);
-        if ((pt_param[0] >= min_R && pt_param[0] <= max_R)[0]) potential_collisions.emplace_back(pt_param);
+        if ((pt_param[0] >= min_R && pt_param[0] <= max_R)[0]) {
+            potential_collisions.emplace_back(pt_param);
+            //convert_pts2cspace(xt_pt, curvature, true);
+        }
     }
     return potential_collisions;
 }
 
 float CollisionPlanner::calculate_shortest_collision(float curvature, std::vector<xt::xtensor<float, 1>> & colliding_pts) {
     auto corner_params = convert4corner2cspace(curvature);
-    std::vector<float> offending_angle{};
-    offending_angle.reserve(3 * colliding_pts.size());
+    float min_angle = INFINITY, max_angle = -INFINITY;
 
     float top_inner_R = fminf(corner_params(0, 0), corner_params(1, 0));
     float top_outter_R = fmaxf(corner_params(0, 0), corner_params(1, 0));
@@ -86,34 +97,110 @@ float CollisionPlanner::calculate_shortest_collision(float curvature, std::vecto
     float right_inner_R = fminf(corner_params(0, 0), corner_params(3, 0));
     float right_outter_R = fmaxf(corner_params(0, 0), corner_params(3, 0));
     for (auto & pt: colliding_pts) {
+
         // Top side
         if (pt[0] > top_inner_R && pt[0] < top_outter_R) {
             float front_theta = linear_interpolate_params_wrt_R(
                     xt::row(corner_params, 0), xt::row(corner_params, 1), pt[0]);
-            float diff = pt[1] - front_theta;
-            offending_angle.emplace_back(diff);
+
+
+            float diff = fmod(pt[1] - front_theta, 2 * M_PI);
+            if (diff > max_angle) max_angle = diff;
+            if (diff < min_angle) min_angle = diff;
         }
         // Left side
         if (pt[0] > left_inner_R && pt[0] < left_outter_R) {
             float front_theta = linear_interpolate_params_wrt_R(
                     xt::row(corner_params, 1), xt::row(corner_params, 2), pt[0]);
-            float diff = pt[1] - front_theta;
-            offending_angle.emplace_back(diff);
+
+
+            float diff = fmod(pt[1] - front_theta, 2 * M_PI);
+            if (diff > max_angle) max_angle = diff;
+            if (diff < min_angle) min_angle = diff;
         }
         // Right side
         if (pt[0] > right_inner_R && pt[0] < right_outter_R) {
             float front_theta = linear_interpolate_params_wrt_R(
                     xt::row(corner_params, 3), xt::row(corner_params, 0), pt[0]);
-            float diff = pt[1] - front_theta;
-            offending_angle.emplace_back(diff);
+
+
+            float diff = fmod(pt[1] - front_theta, 2 * M_PI);
+            if (diff > max_angle) max_angle = diff;
+            if (diff < min_angle) min_angle = diff;
         }
     }
     if (curvature > 0){
-        if (!offending_angle.empty()) return *std::min(offending_angle.begin(), offending_angle.end());
+        if (min_angle < INFINITY) return min_angle;
         else return INFINITY;
     }
     else {
-        if (!offending_angle.empty()) return *std::max(offending_angle.begin(), offending_angle.end());
+        if (max_angle > -INFINITY) return max_angle;
+        else return INFINITY;
+    }
+
+}
+
+float CollisionPlanner::calculate_shortest_collision(float curvature,
+                                                     std::vector<xt::xtensor<float, 1>> & colliding_pts,
+                                                     amrl_msgs::VisualizationMsg& msg) {
+    auto corner_params = convert4corner2cspace(curvature);
+    float min_angle = INFINITY, max_angle = -INFINITY;
+
+    float top_inner_R = fminf(corner_params(0, 0), corner_params(1, 0));
+    float top_outter_R = fmaxf(corner_params(0, 0), corner_params(1, 0));
+    float left_inner_R = fminf(corner_params(1, 0), corner_params(2, 0));
+    float left_outter_R = fmaxf(corner_params(1, 0), corner_params(2, 0));
+    float right_inner_R = fminf(corner_params(0, 0), corner_params(3, 0));
+    float right_outter_R = fmaxf(corner_params(0, 0), corner_params(3, 0));
+    for (auto & pt: colliding_pts) {
+        //visualization::DrawArc(Eigen::Vector2f{0, 1.f / curvature}, pt[0], M_PI / 2.f,
+                               //pt[1], 0xBB000000, msg);
+        // Top side
+        if (pt[0] > top_inner_R && pt[0] < top_outter_R) {
+            float front_theta = linear_interpolate_params_wrt_R(
+                    xt::row(corner_params, 0), xt::row(corner_params, 1), pt[0]);
+
+            visualization::DrawArc(Eigen::Vector2f{0, 1.f / curvature}, pt[0], front_theta,
+                                   pt[1], 0xBBFF00FF, msg);
+
+            float diff = fmod(pt[1] - front_theta, 2 * M_PI);
+            printf("Top %f, pt %f\n", diff, pt[1]);
+            if (diff > max_angle) max_angle = diff;
+            if (diff < min_angle) min_angle = diff;
+        }
+        // Left side
+        if (pt[0] > left_inner_R && pt[0] < left_outter_R) {
+            float front_theta = linear_interpolate_params_wrt_R(
+                    xt::row(corner_params, 1), xt::row(corner_params, 2), pt[0]);
+
+            visualization::DrawArc(Eigen::Vector2f{0, 1.f / curvature}, pt[0], front_theta,
+                                   pt[1], 0xBB00FFFF, msg);
+
+            float diff = fmod(pt[1] - front_theta, 2 * M_PI);
+            printf("Left %f, pt %f\n", diff, pt[1]);
+            if (diff > max_angle) max_angle = diff;
+            if (diff < min_angle) min_angle = diff;
+        }
+        // Right side
+        if (pt[0] > right_inner_R && pt[0] < right_outter_R) {
+            float front_theta = linear_interpolate_params_wrt_R(
+                    xt::row(corner_params, 3), xt::row(corner_params, 0), pt[0]);
+
+            visualization::DrawArc(Eigen::Vector2f{0, 1.f / curvature}, pt[0], front_theta,
+                                   pt[1], 0xBB0000FF, msg);
+
+            float diff = fmod(pt[1] - front_theta, 2 * M_PI);
+            printf("Right %f, pt %f\n", diff, pt[1]);
+            if (diff > max_angle) max_angle = diff;
+            if (diff < min_angle) min_angle = diff;
+        }
+    }
+    if (curvature > 0){
+        if (min_angle < INFINITY) return min_angle;
+        else return INFINITY;
+    }
+    else {
+        if (max_angle > -INFINITY) return max_angle;
         else return INFINITY;
     }
 

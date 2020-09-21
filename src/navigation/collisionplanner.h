@@ -9,6 +9,8 @@
 #include "xtensor/xtensor.hpp"
 #include <vector>
 #include "constants.h"
+#include "visualization/visualization.h"
+#include "amrl_msgs/VisualizationMsg.h"
 
 class CollisionPlanner {
 public:
@@ -16,7 +18,7 @@ public:
 
     xt::xtensor<float, 2> convert4corner2cspace(float curvature);
 
-    xt::xtensor<float, 1> convert_pts2cspace(const xt::xtensor<float, 1> &pt, float curvature);
+    xt::xtensor<float, 1> convert_pts2cspace(const xt::xtensor<float, 1> &pt, float curvature, bool);
 
     float linear_interpolate_params_wrt_R(const xt::xtensor<float, 1> &pt1, const xt::xtensor<float, 1> &pt2, float Rp);
 
@@ -30,6 +32,9 @@ public:
     // OLEG TODO:: to impelement!
     float calc_dist_on_curve_for_angle(float curvature, float angle);
     float calculate_shortest_translational_displacement(float curvature, std::vector<Eigen::Vector2f> & pts);
+
+    float calculate_shortest_collision(float curvature, std::vector<xt::xtensor<float, 1>> & colliding_pts,
+                                       amrl_msgs::VisualizationMsg& msg);
 
 
 private:
