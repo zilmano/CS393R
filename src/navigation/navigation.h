@@ -27,6 +27,8 @@
 #include "plotpublisher.h"
 #include "world.h"
 #include "drivingcontrols.h"
+#include "collisionplanner.h"
+#include "state_estimator.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -71,8 +73,10 @@ class Navigation {
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
-  //Added puclic methods go in this section
+  //Added public methods go in this section
+  
   void Test();
+  
   // Added private methods go in this section
  private:
 
@@ -115,7 +119,7 @@ class Navigation {
   float init_angle_;
   bool is_initloc_inited_;
   
-  // $representation of our world.
+  // Representation of our world.
   World world_;
     
   // Latency management
@@ -125,6 +129,8 @@ class Navigation {
   // speed and turning controls
   DrivingControls driver;
 
+  // Processors
+  StateEstimator state_estimator_;
   
 };
 

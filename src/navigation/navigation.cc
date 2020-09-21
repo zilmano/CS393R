@@ -50,18 +50,18 @@ using namespace math_util;
 using namespace ros_helpers;
 
 namespace {
-ros::Publisher drive_pub_;
-ros::Publisher viz_pub_;
-VisualizationMsg local_viz_msg_;
-VisualizationMsg global_viz_msg_;
-AckermannCurvatureDriveMsg drive_msg_;
+    ros::Publisher drive_pub_;
+    ros::Publisher viz_pub_;
+    VisualizationMsg local_viz_msg_;
+    VisualizationMsg global_viz_msg_;
+    AckermannCurvatureDriveMsg drive_msg_;
 // Epsilon value for handling limited numerical precision.
-const float kEpsilon = 1e-5;
+    const float kEpsilon = 1e-5;
 } //namespace
 
 namespace navigation {
 
-Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
+Navigation::Navigation(const string &map_file, ros::NodeHandle *n) :
     robot_loc_(0, 0),
     robot_angle_(0),
     robot_vel_(0, 0),
@@ -77,7 +77,9 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     is_initloc_inited_{false},
     world_(SamplingConsts::downsample_rate_space, SamplingConsts::downsample_rate_time),
     latency_tracker_{plot_publisher_, 0.05f},
-    latency_size_{0} {
+    latency_size_{0},
+    state_estimator_{PhysicsConsts::act_latency_portion*PhysicsConsts::default_latency,
+                    (1-PhysicsConsts::act_latency_portion)*PhysicsConsts::default_latency,0}{
   drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
       "ackermann_curvature_drive", 1);
   viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -89,16 +91,16 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
   Clock::now();
 }
 
-void Navigation::SetNavGoal(const Vector2f& loc, float angle) {
+void Navigation::SetNavGoal(const Vector2f &loc, float angle) {
 }
 
-void Navigation::UpdateLocation(const Eigen::Vector2f& loc, float angle) {
+void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle) {
 
 }
 
-void Navigation::UpdateOdometry(const Vector2f& loc,
+void Navigation::UpdateOdometry(const Vector2f &loc,
                                 float angle,
-                                const Vector2f& vel,
+                                const Vector2f &vel,
                                 float ang_vel) {
     if (!is_initloc_inited_) {
         init_loc_ = robot_loc_;
@@ -108,9 +110,9 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
         auto is_loc_nonzero = !init_loc_.isZero();
         if (is_loc_finite and is_loc_nonzero) {
             is_initloc_inited_ = true;
-            printf("Init loc %f, %f\n", init_loc_[0], init_loc_[1]);
+            ROS_INFO("Init loc %f, %f", init_loc_[0], init_loc_[1]);
         }
-    }
+        }
     robot_loc_ = loc;
     robot_angle_ = angle;
     robot_vel_ = vel;
@@ -122,9 +124,9 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
 
     plot_publisher_.publish_named_point("Obsrv Dist", curr_time, (loc - init_loc_).norm());
     plot_publisher_.publish_named_point("Obsrv Spd", curr_time, vel.norm());
-}
+    }
 
-void Navigation::ObservePointCloud(const vector<Vector2f>& cloud,
+void Navigation::ObservePointCloud(const vector<Vector2f> &cloud,
                                    double time) {
     laser_pcloud_local_frame_ = cloud;
 }
@@ -169,53 +171,111 @@ void Navigation::Test() {
 }
 
 void Navigation::Run() {
-  // Create Helper functions here
-  // Milestone 1 will fill out part of this class.
-  // Milestone 3 will complete the rest of navigation.
+    // Create Helper functions here
+    // Milestone 1 will fill out part of this class.
+    // Milestone 3 will complete the rest of navigation.
 
-  float c_p = 0.01f;
-  float epsilon = 0.005f;
-  auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
+    float c_p = 0.01f;
+    float epsilon = 0.005f;
+    auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
 
-  float dis2stop = ComputeDis2Stop() + epsilon;
+    float dis2stop = ComputeDis2Stop() + epsilon;
 
-  float desired_curvature = -1; // determiend by collision planner?
-  robot_curvature_ = desired_curvature;      // input from collision planner?
-  
-  float arc_length_distance = 2;    // input from collision planner?
-  
-  // if the curvature changes, a new "target location" is created. The center of turning will need to be updated.
-  if (desired_curvature != robot_curvature_){
-    init_angle_ = driver.calculate_initial_angle(robot_angle_, robot_curvature_);
-  }
-  
-  robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_);
-  robot_target_loc_ = driver.calculate_target_location(arc_length_distance, robot_curvature_, init_angle_, robot_center_of_turning_);
-  // distance until end of arc path
-  auto curr_dist = driver.calculate_current_distance(robot_curvature_, robot_loc_, robot_target_loc_, arc_length_distance);
-  auto curr_spd = robot_vel_.norm();
-  
-  
-  printf("robot location: %.2f, %.2f\n", robot_loc_.x(), robot_loc_.y());
-  printf("target location: %.2f, %.2f\n", robot_target_loc_.x(), robot_target_loc_.y());
-  printf("robot curvature: %.2f \nrobot center of turning: %.2f, %.2f\n", robot_curvature_, robot_center_of_turning_.x(),robot_center_of_turning_.y());
-  printf("robot current distance: %.2f\n", curr_dist);
-  printf("Distance2stop: %.2f\n", dis2stop);
-  printf("Robot velocity: %.2f\n", curr_spd);
-  printf("Angle between loc and target: %.2f\n\n", driver.calculate_theta(robot_loc_, robot_target_loc_, robot_curvature_));
+    // curvature determined by collision planner
+    float desired_curvature = -1; 
+    robot_curvature_ = desired_curvature;      
+    
+    // curvature determined by collision planner
+    float arc_length_distance = 2;   
+    
+    // if the curvature changes, a new "target location" is created. The center of turning will need to be updated.
+    if (desired_curvature != robot_curvature_){
+        init_angle_ = driver.calculate_initial_angle(robot_angle_, robot_curvature_);
+    }
+    
+    robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_);
+    robot_target_loc_ = driver.calculate_target_location(arc_length_distance, robot_curvature_, init_angle_, robot_center_of_turning_);
+    
+    // distance until end of arc path
+    auto curr_dist = driver.calculate_current_distance(robot_curvature_, robot_loc_, robot_target_loc_, arc_length_distance);
+    auto curr_spd = robot_vel_.norm();
 
-  driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p);
-  
-  drive_msg_.velocity = driver.get_velocity();
-  drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
-  drive_msg_.curvature = robot_curvature_;
-  
-  drive_pub_.publish(drive_msg_);
-  
-  double curr_time = ros::Time::now().toSec();
-  //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
-  latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
-  plot_publisher_.publish_named_point("Ctrl cmd", Clock::now(), drive_msg_.velocity);
-}
+    // update current speed
+    driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p);
+    
+    drive_msg_.velocity = driver.get_velocity();
+    drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
+    drive_msg_.curvature = robot_curvature_;
+    
+    drive_pub_.publish(drive_msg_);
+    
+    double curr_time = ros::Time::now().toSec();
+    //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
+    latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
+    plot_publisher_.publish_named_point("Ctrl cmd", Clock::now(), drive_msg_.velocity);
+
+
+    visualization::ClearVisualizationMsg(local_viz_msg_);
+    float curvature = 0.5f, extending_radius = 5.f;
+    //float offset_omega = curvature > 0 ? (-M_PI / 2.f) : (M_PI / 2.f);
+    CollisionPlanner cp{world_};
+
+    auto corner_params = cp.convert4corner2cspace(curvature);
+    for (int i = 0; i < 4; ++i) {
+    visualization::DrawArc(Vector2f{0, 1.0 / curvature}, corner_params(i, 0), corner_params(i, 1),
+                            corner_params(i, 1) + extending_radius, 0x0000FFFF, local_viz_msg_);
+
+    }
+
+    auto w = CarDims::w + CarDims::default_safety_margin * 2;
+    auto l = CarDims::l + CarDims::default_safety_margin * 2;
+    Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
+    Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
+    Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
+    Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
+    visualization::DrawLine(corner1, corner2, 0x000000FF, local_viz_msg_);
+    visualization::DrawLine(corner2, corner3, 0x000000FF, local_viz_msg_);
+    visualization::DrawLine(corner3, corner4, 0x000000FF, local_viz_msg_);
+    visualization::DrawLine(corner4, corner1, 0x000000FF, local_viz_msg_);
+
+    if (!laser_pcloud_local_frame_.empty()) {
+    auto coll = cp.select_potential_collision(curvature, laser_pcloud_local_frame_);
+    /*
+    for (auto &pt : coll) {
+        //visualization::DrawPoint(Vector2f{pt[0], pt[1]}, 0x00FF00FF, local_viz_msg_);
+        float start = fmin(offset_omega, pt(1));
+        float end = fmax(offset_omega, pt(1));
+        visualization::DrawArc(Vector2f{0, 1.0 / curvature}, pt(0), start, end, 0x00FF00FF, local_viz_msg_);
+
+    }
+        */
+    /*
+    auto steps = 10;
+    auto pt1 = coll.front();
+    auto pt2 = coll.back();
+    auto inc = (pt2[0] - pt1[0]) / steps;
+    for (int i = 0; i < steps; ++i){
+        float rp = pt1[0] + i * inc;
+        float thetap = cp.linear_interpolate_params_wrt_R(pt1, pt2, rp);
+        float start = fmin(offset_omega, thetap);
+        float end = fmax(offset_omega, thetap);
+        visualization::DrawArc(Vector2f{0, 1.0 / curvature}, rp, start, end, 0x00FF00FF, local_viz_msg_);
+
+    }
+        */
+
+    float clearance = cp.calculate_shortest_collision(curvature, coll);
+    ROS_INFO("clearance %f", clearance);
+
+    for (int i = 0; i < 4; ++i) {
+        float start = fmin(corner_params(i, 1), corner_params(i, 1) + clearance);
+        float end = fmax(corner_params(i, 1), corner_params(i, 1) + clearance);
+        visualization::DrawArc(Vector2f{0, 1.0 / curvature}, corner_params(i, 0), start, end,
+                                0x00FF00FF, local_viz_msg_);
+
+    }
+
+
+    viz_pub_.publish(local_viz_msg_);
 
 }  // namespace navigation

@@ -26,6 +26,7 @@ class DrivingControls {
      * controls both linear and angular movement
 	 */
 public:
+    // TOC
     void update_current_speed(float distance2stop, bool initialloc_init_, float current_speed, float current_distance, float speed_increment, float c_p){
         if (current_distance <= 0 or !initialloc_init_){
             new_velocity = 0;
@@ -41,6 +42,7 @@ public:
         }
     }
     
+    // distance until end of fpl
     float calculate_current_distance(float curvature, Vector2f robot_location, Vector2f target, float arc_length){
         float current_distance;
         if (curvature >= 0){
@@ -52,6 +54,7 @@ public:
         return current_distance;
     }
     
+    // calculates cartesian coordinates of target location (end of fpl)
     Vector2f calculate_target_location(float arc_length, float curvature, float init_angle, Vector2f center){
         float theta = arc_length * curvature;
         float x;
@@ -74,6 +77,7 @@ public:
         return target;
     }
     
+    // angle between target and robot location when new path is initialized
     float calculate_initial_angle(float robot_angle, float curvature){
         float theta;
         if (curvature < 0) {
@@ -85,6 +89,7 @@ public:
         return theta;
     }
 
+    // double check that velocity isn't exceeding max velocity setting
     float drive_msg_check(float drv_msg){
         if (drv_msg > 1.0){
             drv_msg = 1;
@@ -128,6 +133,7 @@ public:
         return polar_coord;
     }
 
+    // angle between two points based on center of turning
     float calculate_theta(Vector2f starting_point, Vector2f ending_point, float curvature){
         float dist_between_points = (ending_point - starting_point).norm();
         float theta;
