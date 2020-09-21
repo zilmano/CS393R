@@ -29,8 +29,8 @@ public:
     void update_current_speed(float distance2stop, bool initialloc_init_, float current_speed, float current_distance, float speed_increment, float c_p){
         if (current_distance <= 0 or !initialloc_init_){
             new_velocity = 0;
-        } else if (current_distance <= distance2stop) {
-            current_speed -= speed_increment + (Assignment1::target_dis - current_distance) * c_p;
+        } else if (current_distance <= 0.18) {
+            current_speed -= speed_increment + current_distance * c_p;
             new_velocity = current_speed;
         } else if (current_speed >= PhysicsConsts::max_vel) {
             current_speed = PhysicsConsts::max_vel;
@@ -42,28 +42,33 @@ public:
     }
     
     float calculate_current_distance(float curvature, Vector2f robot_location, Vector2f target, float arc_length){
-        return arc_length - 1 / curvature * calculate_theta(robot_location, target, curvature);
+        return 1 / curvature * calculate_theta(robot_location, target, curvature);
     }
-
     
-    Vector2f calculate_target_location(float arc_length, float curvature, float init_angle, Vector2f robot_location){
+    Vector2f calculate_target_location(float arc_length, float curvature, float init_angle, Vector2f center){
         float theta = arc_length * curvature;
+        if (curvature < 0){
+            theta = 2 * M_PI - theta;
+        }
         if (curvature > 10000){
             curvature = 10000;
         }
-        robot_location.x() = robot_location.x() + 1/curvature * cos(theta + init_angle);
-        robot_location.y() = robot_location.y() + 1/curvature * sin(theta + init_angle);
+       
+        float x = center.x() + 1/curvature * cos(theta + init_angle);
+        float y = center.y() + 1/curvature * sin(theta + init_angle);
+        Vector2f target(x,y);
 
-        return robot_location;
+        return target;
     }
     
-    float calculate_initital_angle(Vector2f robot_location, Vector2f center){
-        float x_rel = robot_location.x() - center.x();
-        float y_rel = robot_location.y() - center.y();
-        float theta = atan(y_rel/x_rel);
-        if (theta > M_PI) {
-        theta = 2*M_PI - theta;
+    float calculate_initial_angle(float robot_angle, float curvature){
+        float theta;
+        if (curvature < 0) {
+            theta = robot_angle + M_PI/2;
+        } else {
+            theta = robot_angle - M_PI/2;
         }
+
         return theta;
     }
 
@@ -78,18 +83,21 @@ public:
         return drv_msg;
     }
     
-    Vector2f get_center_of_turning(float curvature, Vector2f robot_location, float robot_angle, Vector2f init_loc){
+    Vector2f get_center_of_turning(float curvature, Vector2f robot_location, float robot_angle){
         if (curvature > 10000){
             curvature = 10000;
         }
-        float x_center = init_loc.x() + 1/curvature * cos(robot_angle);
-        float y_center = init_loc.y() + 1/curvature * sin(robot_angle);
+        float theta;
+        if (curvature < 0){
+            theta = robot_angle - M_PI/2;
+        } else {
+            theta = robot_angle + M_PI/2;
+        }
+
+        float x_center = robot_location.x() + 1/curvature * cos(theta);
+        float y_center = robot_location.y() + 1/curvature * sin(theta);
         Vector2f center(x_center,y_center);
         return center;
-    }
-
-    void update_current_angular_velocity(){
-        // needs to take into account targeted direction
     }
 
     float get_velocity(){
@@ -109,10 +117,17 @@ public:
 
     float calculate_theta(Vector2f starting_point, Vector2f ending_point, float curvature){
         float dist_between_points = (ending_point - starting_point).norm();
-        float theta = 2 * asin(0.5 * dist_between_points * curvature);
-        if (theta > M_PI) {
-            theta = 2*M_PI - theta;
+        float theta;
+
+        if(curvature >= 0){
+            theta = 2 * asin(0.5 * dist_between_points * curvature);
+            //theta = atan(ending_point.y()/ending_point.x()) - atan(starting_point.y()/starting_point.x());
         }
+        else {
+            theta = (-1) * 2 * asin(0.5 * dist_between_points * curvature);
+            //theta = -(atan(ending_point.y()/ending_point.x()) - atan(starting_point.y()/starting_point.x()));
+        }
+
         return theta;
     }
 

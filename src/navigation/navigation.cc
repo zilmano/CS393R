@@ -102,9 +102,7 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
                                 float ang_vel) {
     if (!is_initloc_inited_) {
         init_loc_ = robot_loc_;
-        robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_, init_loc_);
-        init_angle_ = driver.calculate_initital_angle(robot_loc_, robot_center_of_turning_);
-        robot_target_loc_ = driver.calculate_target_location(Assignment1::target_dis, robot_curvature_, init_angle_, robot_loc_);
+        init_angle_ = driver.calculate_initial_angle(robot_angle_, robot_curvature_);
         // Oleg Question: what is wrong with loc zero, not sure I understand how this works.
         auto is_loc_finite = init_loc_.allFinite();
         auto is_loc_nonzero = !init_loc_.isZero();
@@ -186,27 +184,25 @@ void Navigation::Run() {
   
   float arc_length_distance = 2;    // input from collision planner?
   
-
-  
-  // if the curvature changes, a new "target location" is created. The center of tunring will need to be updated.
+  // if the curvature changes, a new "target location" is created. The center of turning will need to be updated.
   if (desired_curvature != robot_curvature_){
-    robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_, init_loc_);
-    init_angle_ = driver.calculate_initital_angle(robot_loc_, robot_center_of_turning_);
-    robot_target_loc_ = driver.calculate_target_location(arc_length_distance, robot_curvature_, init_angle_, robot_loc_);
+    init_angle_ = driver.calculate_initial_angle(robot_angle_, robot_curvature_);
   }
-
-
+  
+  robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_);
+  robot_target_loc_ = driver.calculate_target_location(arc_length_distance, robot_curvature_, init_angle_, robot_center_of_turning_);
   // distance until end of arc path
   auto curr_dist = driver.calculate_current_distance(robot_curvature_, robot_loc_, robot_target_loc_, arc_length_distance);
   auto curr_spd = robot_vel_.norm();
-
+  
+  
   printf("robot location: %.2f, %.2f\n", robot_loc_.x(), robot_loc_.y());
   printf("target location: %.2f, %.2f\n", robot_target_loc_.x(), robot_target_loc_.y());
-  printf("robot curvature: %.2f \trobot center of turning: %.2f, %.2f\n", robot_curvature_, robot_center_of_turning_.x(),robot_center_of_turning_.y());
+  printf("robot curvature: %.2f \nrobot center of turning: %.2f, %.2f\n", robot_curvature_, robot_center_of_turning_.x(),robot_center_of_turning_.y());
   printf("robot current distance: %.2f\n", curr_dist);
-  printf("robot angle: %.2f\n", robot_angle_);
-  printf("robot initial angle: %.2f\n", init_angle_);
-  printf("get angle between two points: %.2f\n", driver.calculate_theta(robot_target_loc_, robot_loc_, robot_curvature_));
+  printf("Distance2stop: %.2f\n", dis2stop);
+  printf("Robot velocity: %.2f\n", curr_spd);
+  printf("Angle between loc and target: %.2f\n\n", driver.calculate_theta(robot_loc_, robot_target_loc_, robot_curvature_));
 
   driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p);
   
