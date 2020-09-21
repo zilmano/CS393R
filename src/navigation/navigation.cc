@@ -355,6 +355,7 @@ namespace navigation {
 
             viz_pub_.publish(local_viz_msg_);
         }*/
+
     }
 
 
