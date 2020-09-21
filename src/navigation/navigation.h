@@ -73,7 +73,8 @@ class Navigation {
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
   //Added public methods go in this section
-  
+  float RePlanPath();
+  float SetOptimalVelocity(float target_dist=0);
   void Test();
   
   // Added private methods go in this section
@@ -121,6 +122,7 @@ class Navigation {
   
   // Processors
   StateEstimator state_estimator_;
+  CollisionPlanner collision_planner_;
   
 };
 

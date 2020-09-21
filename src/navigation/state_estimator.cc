@@ -71,9 +71,9 @@ void StateEstimator::update_estimation(const Vector2f& observation_loc, float ob
             (actuation_step_period_ratio - floor(actuation_step_period_ratio));
    
     // OLEG TODO: remove this is for debug
-    auto print_pose =  [](const PoseSE2& p) {
+    /*auto print_pose =  [](const PoseSE2& p) {
               std::cout << " x:" << p.loc.x() << " y:" << p.loc.y() << " angle:" << p.angle;
-    };
+    };*/
     
     for (std::list<ControlCommand>::const_iterator cmd_it = cmd_quasi_queue_.begin();
          cmd_it != cmd_quasi_queue_.end();) {
