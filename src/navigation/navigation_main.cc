@@ -44,9 +44,11 @@
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "shared/ros/ros_helpers.h"
+#include "amrl_msgs/Localization2DMsg.h" 
 
 #include "navigation.h"
 
+using amrl_msgs::Localization2DMsg;
 using math_util::DegToRad;
 using math_util::RadToDeg;
 using navigation::Navigation;
@@ -149,11 +151,11 @@ void SignalHandler(int) {
   run_ = false;
 }
 
-void LocalizationCallback(const geometry_msgs::Pose2D& msg) {
+void LocalizationCallback(const amrl_msgs::Localization2DMsg msg) {
   if (FLAGS_v > 0) {
     printf("Localization t=%f\n", GetWallTime());
   }
-  navigation_->UpdateLocation(Vector2f(msg.x, msg.y), msg.theta);
+  navigation_->UpdateLocation(Vector2f(msg.pose.x, msg.pose.y), msg.pose.theta);
 }
 
 int main(int argc, char** argv) {
