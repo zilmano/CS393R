@@ -26,6 +26,7 @@
 #include "constants.h"
 #include "plotpublisher.h"
 #include "world.h"
+#include "drivingcontrols.h"
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -105,7 +106,13 @@ class Navigation {
 
   std::vector<Eigen::Vector2f> laser_pcloud_local_frame_;
   PlotPublisher plot_publisher_;
+  
+  float robot_curvature_;
+  Eigen::Vector2f robot_center_of_turning_;
+  Eigen::Vector2f robot_target_loc_;
+
   Eigen::Vector2f init_loc_;
+  float init_angle_;
   bool is_initloc_inited_;
   
   // $representation of our world.
@@ -117,6 +124,7 @@ class Navigation {
   
   // speed and turning controls
   DrivingControls driver;
+
   
 };
 

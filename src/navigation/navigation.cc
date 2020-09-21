@@ -71,6 +71,9 @@ Navigation::Navigation(const string& map_file, ros::NodeHandle* n) :
     nav_goal_loc_(0, 0),
     nav_goal_angle_(0),
     plot_publisher_{n},
+    robot_curvature_(0),
+    robot_center_of_turning_(0, 0),
+    robot_target_loc_(0, 0),
     is_initloc_inited_{false},
     world_(SamplingConsts::downsample_rate_space, SamplingConsts::downsample_rate_time),
     latency_tracker_{plot_publisher_, 0.05f},
@@ -99,6 +102,9 @@ void Navigation::UpdateOdometry(const Vector2f& loc,
                                 float ang_vel) {
     if (!is_initloc_inited_) {
         init_loc_ = robot_loc_;
+        robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_, init_loc_);
+        init_angle_ = driver.calculate_initital_angle(robot_loc_, robot_center_of_turning_);
+        robot_target_loc_ = driver.calculate_target_location(Assignment1::target_dis, robot_curvature_, init_angle_, robot_loc_);
         // Oleg Question: what is wrong with loc zero, not sure I understand how this works.
         auto is_loc_finite = init_loc_.allFinite();
         auto is_loc_nonzero = !init_loc_.isZero();
@@ -175,26 +181,41 @@ void Navigation::Run() {
 
   float dis2stop = ComputeDis2Stop() + epsilon;
 
-  // target location is always a defined distance directly in front of the robot
-  auto target_loc = driver.calculate_target_location(robot_loc_, robot_angle_);
+  float desired_curvature = 1; // determiend by collision planner?
+  robot_curvature_ = desired_curvature;      // input from collision planner?
+  
+  float arc_length_distance = 2;    // input from collision planner?
+  
 
-  // Current Distance
-  auto curr_dist = (target_loc - robot_loc_).norm();
+  
+  // if the curvature changes, a new "target location" is created. The center of tunring will need to be updated.
+  if (desired_curvature != robot_curvature_){
+    robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_, init_loc_);
+    init_angle_ = driver.calculate_initital_angle(robot_loc_, robot_center_of_turning_);
+    robot_target_loc_ = driver.calculate_target_location(arc_length_distance, robot_curvature_, init_angle_, robot_loc_);
+  }
+
+
+  // distance until end of arc path
+  auto curr_dist = driver.calculate_current_distance(robot_curvature_, robot_loc_, robot_target_loc_, arc_length_distance);
   auto curr_spd = robot_vel_.norm();
 
-  /**
-   * How is curvature going to be integrated 
-   */
-  float desired_curvature = 0;
+  printf("robot location: %.2f, %.2f\n", robot_loc_.x(), robot_loc_.y());
+  printf("target location: %.2f, %.2f\n", robot_target_loc_.x(), robot_target_loc_.y());
+  printf("robot curvature: %.2f \trobot center of turning: %.2f, %.2f\n", robot_curvature_, robot_center_of_turning_.x(),robot_center_of_turning_.y());
+  printf("robot current distance: %.2f\n", curr_dist);
+  printf("robot angle: %.2f\n", robot_angle_);
+  printf("robot initial angle: %.2f\n", init_angle_);
+  printf("get angle between two points: %.2f\n", driver.calculate_theta(robot_target_loc_, robot_loc_, robot_curvature_));
 
   driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p);
   
   drive_msg_.velocity = driver.get_velocity();
   drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
-  drive_msg_.curvature = desired_curvature;
+  drive_msg_.curvature = robot_curvature_;
   
   drive_pub_.publish(drive_msg_);
-
+  
   double curr_time = ros::Time::now().toSec();
   //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
   latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
