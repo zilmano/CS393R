@@ -43,6 +43,20 @@ add_subdirectory(thirdparty/xtensor)
 add_subdirectory(thirdparty/xtensor-blas)
 add_subdirectory(thirdparty/xsimd)
 
+add_definitions(-DHAVE_CBLAS=1)
+
+if (WIN32)
+  find_package(OpenBLAS REQUIRED)
+  set(BLAS_LIBRARIES ${CMAKE_INSTALL_PREFIX}${OpenBLAS_LIBRARIES})
+else()
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
+endif()
+
+message(STATUS "BLAS VENDOR:    " ${BLA_VENDOR})
+message(STATUS "BLAS LIBRARIES: " ${BLAS_LIBRARIES})
+
+
 
 ROSBUILD_ADD_EXECUTABLE(slam
                         src/slam/slam_main.cc
@@ -63,7 +77,8 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/pointcloud.cpp
                         src/navigation/collisionplanner.cpp
         )
-TARGET_LINK_LIBRARIES(navigation shared_library ${libs})
+TARGET_LINK_LIBRARIES(navigation shared_library ${libs} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+
 target_include_directories(navigation
         PUBLIC
           ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas)

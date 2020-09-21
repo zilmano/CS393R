@@ -47,6 +47,8 @@ public:
 
 	void update_obbsatcle_data_map_frame(std::vector<Eigen::Vector2f> point_cloud) { throw("Not implemented yet.");}
 
+	size_t size() { return latest_pcloud_odom_frame_.size(); }
+
 private:
 	std::vector<Eigen::Vector2f> down_sample_point_cloud(std::vector<Eigen::Vector2f>) { throw("Not implemented yet."); };
 

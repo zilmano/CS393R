@@ -18,7 +18,7 @@ public:
 
     float linear_interpolate_params_wrt_R(const xt::xtensor<float, 1> &pt1, const xt::xtensor<float, 1> &pt2, float Rp);
 
-
+    std::vector<xt::xtensor<float, 1>> select_potential_collision(float curvature, std::vector<Eigen::Vector2f> & pts);
 
 private:
     World &point_cloud_;
