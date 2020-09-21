@@ -248,7 +248,7 @@ namespace navigation {
          */
 
         RePlanPath();
-        SetOptimalVelocity();
+        SetOptimalVelocity(100);
 
         drive_pub_.publish(drive_msg_);
 
