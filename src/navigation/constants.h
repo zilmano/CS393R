@@ -14,7 +14,7 @@ namespace GenConsts{
 }
 
 namespace PhysicsConsts{
-    const static float max_acc = 3.0f;
+    const static float max_acc = 4.0f;
     const static float max_vel = 1.0f;
     const static float act_latency_portion = 0.25f;
     const static float default_latency = 50.0f / 1000.0f;
@@ -27,9 +27,9 @@ namespace SamplingConsts {
 
 namespace CarDims{
 	// OLEG TODO: mesure the car to see if these are correct.
-    const static float w = 0.281f;
+    const static float w = 0.275f;
 	const static float l = 0.535f;
-	const static float wheelbase = 0.324f;
+	const static float wheelbase = 0.325f;
 	const static float default_safety_margin = 0.15f;
     const static xt::xtensor<float, 2> laser_loc;
 }

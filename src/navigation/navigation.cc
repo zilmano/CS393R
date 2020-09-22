@@ -223,7 +223,6 @@ namespace navigation {
                     if (fabs(candidate) < GenConsts::kEpsilon) {
                         fpl = collision::check_collision_curvature_zero(work_point_cloud);
                         std::cout << "    C==0" << std::endl;
-
                     } else {
                         float angle = collision_planner_.calculate_shortest_collision(candidate, colliding_points);
                         fpl = (1/candidate)*angle;
