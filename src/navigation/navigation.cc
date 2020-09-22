@@ -227,6 +227,8 @@ namespace navigation {
                         float angle = collision_planner_.calculate_shortest_collision(candidate, colliding_points);
                         fpl = (1/candidate)*angle;
                     }
+
+                    visualization::DrawPathOption(candidate, fpl, fpl, local_viz_msg_);
                     if (fabs(fpl-10) < 0.5) {
                         if (fabs(candidate) < GenConsts::kEpsilon) {
                             std::cout << "Curve Zero is clear."  << std::endl;
@@ -345,6 +347,19 @@ namespace navigation {
         plot_publisher_.publish_named_point("Ctrl cmd c", Clock::now(), drive_msg_.curvature);
         state_estimator_.add_control(ControlCommand(drive_msg_.velocity, drive_msg_.curvature, timestamp));
 
+
+        auto w = CarDims::w + CarDims::default_safety_margin * 2;
+        auto l = CarDims::l + CarDims::default_safety_margin * 2;
+        Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
+        Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
+        visualization::DrawLine(corner1, corner2, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner2, corner3, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner3, corner4, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner4, corner1, 0x000000FF, local_viz_msg_);
+        viz_pub_.publish(local_viz_msg_);
+
         /*float c_p = 0.01f;
         float epsilon = 0.005f;
         auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
@@ -365,6 +380,16 @@ namespace navigation {
             drive_msg_.velocity = curr_spd;
         } else if (curr_spd >= PhysicsConsts::max_vel) {
             curr_spd = PhysicsConsts::max_vel;
+        auto w = CarDims::w + CarDims::default_safety_margin * 2;
+        auto l = CarDims::l + CarDims::default_safety_margin * 2;
+        Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
+        Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
+        Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
+        visualization::DrawLine(corner1, corner2, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner2, corner3, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner3, corner4, 0x000000FF, local_viz_msg_);
+        visualization::DrawLine(corner4, corner1, 0x000000FF, local_viz_msg_);
             drive_msg_.velocity = curr_spd;
         } else {
             curr_spd += spd_inc;
@@ -425,7 +450,7 @@ namespace navigation {
            // for (int i = 0; i < steps; ++i){
            //     float rp = pt1[0] + i * inc;
            //     float thetap = cp.linear_interpolate_params_wrt_R(pt1, pt2, rp);
-           //     float start = fmin(offset_omega, thetap);
+           //     float start = fmin(ofplffset_omega, thetap);
            //     float end = fmax(offset_omega, thetap);
            //     visualization::DrawArc(Vector2f{0, 1.0 / curvature}, rp, start, end, 0x00FF00FF, local_viz_msg_);
 
