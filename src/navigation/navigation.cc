@@ -332,6 +332,7 @@ namespace navigation {
 
         //Test();
         double timestamp = ros::Time::now().toSec();
+        visualization::ClearVisualizationMsg(local_viz_msg_);
         //state_estimator_.update_estimation(robot_loc_,robot_angle_,timestamp);
         state_estimator_.update_estimation(Vector2f(0,0),0, timestamp);
         estimate_pose_local_frame_ = state_estimator_.estimate_state_cmd_actuation_time(timestamp);
