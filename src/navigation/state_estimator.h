@@ -81,11 +81,15 @@ public:
     };*/
 
     void update_estimation(const Vector2f& observation_loc, float observation_angle,
-                           double curr_time, const ControlCommand& curr_command);
+                           double curr_time);
 
     void set_latency(float observation_latency,float actuation_latency) {
         observation_latency_ = observation_latency;
         actuation_latency_ = actuation_latency;
+    }
+
+    void add_control(const ControlCommand& curr_command) {
+        cmd_quasi_queue_.push_back(curr_command);
     }
 
     PoseSE2 estimate_state_curr_time(double curr_time) {

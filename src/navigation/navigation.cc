@@ -148,7 +148,7 @@ namespace navigation {
 
     vector<Vector2f> Navigation::ConvertLaserCloudToOdomFrame() {
         vector<Vector2f> odom_frame_point_cloud;
-        odom_frame_point_cloud.clear();
+        //odom_frame_point_cloud.clear();
         for (size_t i = 0; i < laser_pcloud_local_frame_.size(); ++i) {
             Vector2f odom_frame_point((laser_pcloud_local_frame_[i] + robot_loc_));
             odom_frame_point_cloud.push_back(odom_frame_point);
@@ -156,6 +156,18 @@ namespace navigation {
 
         return odom_frame_point_cloud;
     }
+
+    vector<Vector2f> Navigation::ConvertLaserCloudToOtherFrame(const Vector2f& loc,float angle) {
+            static vector<Vector2f> new_frame_point_cloud;
+            new_frame_point_cloud.clear();
+            for (size_t i = 0; i < laser_pcloud_local_frame_.size(); ++i) {
+                Eigen::Rotation2Df rotation(angle);
+                Vector2f new_frame_point(rotation*(laser_pcloud_local_frame_[i] + loc));
+                new_frame_point_cloud.push_back(new_frame_point);
+            }
+
+            return new_frame_point_cloud;
+        }
 
 
     void Navigation::Test() {
@@ -193,11 +205,14 @@ namespace navigation {
             float best_c = 0;
             float best_fpl = 0;
             std::cout << "RePlan  " << std::endl << "--------------";
+            //std::vector<Vector2f> work_point_cloud = laser_pcloud_local_frame_;
+            vector<Vector2f> work_point_cloud =
+                    ConvertLaserCloudToOtherFrame(estimate_pose_local_frame_.loc,estimate_pose_local_frame_.angle);
             for (size_t i = 0; i < candidate_curvatures.size(); ++i) {
                 float candidate = candidate_curvatures[i];
                 std::cout << "    candidate:  " << candidate << std::endl;
                 auto colliding_points =
-                        collision_planner_.select_potential_collision(candidate, laser_pcloud_local_frame_);
+                        collision_planner_.select_potential_collision(candidate, work_point_cloud);
                 if (colliding_points.empty()) {
                     std::cout << "    colliding points empty." << std::endl;
                     best_c = candidate;
@@ -206,7 +221,7 @@ namespace navigation {
                 else {
                     float fpl;
                     if (fabs(candidate) < GenConsts::kEpsilon) {
-                        fpl = collision::check_collision_curvature_zero(laser_pcloud_local_frame_);
+                        fpl = collision::check_collision_curvature_zero(work_point_cloud);
                         std::cout << "    C==0" << std::endl;
 
                     } else {
@@ -315,17 +330,21 @@ namespace navigation {
          */
 
         //Test();
+        double timestamp = ros::Time::now().toSec();
+        //state_estimator_.update_estimation(robot_loc_,robot_angle_,timestamp);
+        state_estimator_.update_estimation(Vector2f(0,0),0, timestamp);
+        estimate_pose_local_frame_ = state_estimator_.estimate_state_cmd_actuation_time(timestamp);
         RePlanPath();
         SetOptimalVelocity(200);
 
-        //drive_pub_.publish(drive_msg_);
+        drive_pub_.publish(drive_msg_);
 
         //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
         double curr_time = ros::Time::now().toSec();
         latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
         plot_publisher_.publish_named_point("Ctrl cmd vel", Clock::now(), drive_msg_.velocity);
         plot_publisher_.publish_named_point("Ctrl cmd c", Clock::now(), drive_msg_.curvature);
-
+        state_estimator_.add_control(ControlCommand(drive_msg_.velocity, drive_msg_.curvature, timestamp));
 
         /*float c_p = 0.01f;
         float epsilon = 0.005f;
@@ -429,38 +448,7 @@ namespace navigation {
             viz_pub_.publish(local_viz_msg_);
         }*/
 
-        visualization::ClearVisualizationMsg(local_viz_msg_);
-        float curvature = -0.5f;
-        auto corner_params = collision_planner_.convert4corner2cspace(curvature);
 
-        auto w = CarDims::w + CarDims::default_safety_margin * 2;
-        auto l = CarDims::l + CarDims::default_safety_margin * 2;
-        Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
-        Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
-        Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
-        Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
-        visualization::DrawLine(corner1, corner2, 0x000000FF, local_viz_msg_);
-        visualization::DrawLine(corner2, corner3, 0x000000FF, local_viz_msg_);
-        visualization::DrawLine(corner3, corner4, 0x000000FF, local_viz_msg_);
-        visualization::DrawLine(corner4, corner1, 0x000000FF, local_viz_msg_);
-
-        if (!laser_pcloud_local_frame_.empty()) {
-            auto coll = collision_planner_.select_potential_collision(curvature, laser_pcloud_local_frame_);
-
-
-            float clearance = collision_planner_.calculate_shortest_collision(curvature, coll);
-            printf("clearance %f\n", clearance);
-
-            for (int i = 0; i < 4; ++i) {
-                float start = fmin(corner_params(i, 1), corner_params(i, 1) + clearance);
-                float end = fmax(corner_params(i, 1), corner_params(i, 1) + clearance);
-                visualization::DrawArc(Vector2f{0, 1.0 / curvature}, corner_params(i, 0), start, end,
-                                       0x00FF00FF, local_viz_msg_);
-
-            }
-
-            viz_pub_.publish(local_viz_msg_);
-        }
 
     }
 

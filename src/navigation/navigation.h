@@ -82,6 +82,7 @@ class Navigation {
 
    float ComputeDis2Stop();
    std::vector<Eigen::Vector2f> ConvertLaserCloudToOdomFrame();
+   std::vector<Eigen::Vector2f> ConvertLaserCloudToOtherFrame(const Vector2f& loc,float angle);
 
 
  private:
@@ -109,6 +110,7 @@ class Navigation {
   // Added member variables start here
 
   std::vector<Eigen::Vector2f> laser_pcloud_local_frame_;
+  PoseSE2 estimate_pose_local_frame_;
   PlotPublisher plot_publisher_;
   Eigen::Vector2f init_loc_;
   bool is_initloc_inited_;

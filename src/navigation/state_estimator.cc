@@ -56,7 +56,7 @@ PoseSE2 StateEstimator::pose_change_one_step_forward(float vel , float curvature
 }
 
 void StateEstimator::update_estimation(const Vector2f& observation_loc, float observation_angle,
-                                       double curr_time, const ControlCommand& curr_command) {
+                                       double curr_time) {
     curr_time_ = curr_time;
     float observation_time = curr_time_ - observation_latency_;
 
@@ -94,8 +94,6 @@ void StateEstimator::update_estimation(const Vector2f& observation_loc, float ob
                  ++cmd_it;
              }
     }
-    cmd_quasi_queue_.push_back(curr_command);
-
 }
 
 
