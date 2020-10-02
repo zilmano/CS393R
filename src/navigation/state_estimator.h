@@ -11,7 +11,7 @@
 #include <list>
 #include <vector>
 #include "eigen3/Eigen/Dense"
-#include "collision_detect_functions.h"
+#include "shared/global_utils.h"
 
 using Eigen::Vector2f;
 using navigation::PoseSE2;

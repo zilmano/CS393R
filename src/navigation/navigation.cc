@@ -272,6 +272,7 @@ namespace navigation {
                                            2.35,0xFF0000,local_viz_msg_);
             else
                 visualization::DrawLine(Vector2f(0,0),Vector2f(4,0),0xFF0000,local_viz_msg_);
+            visualization::DrawPathOption(best_c, best_fpl,  0, local_viz_msg_);
             return best_c;
         }
 
