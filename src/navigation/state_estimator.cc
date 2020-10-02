@@ -10,7 +10,7 @@
 #define _USE_MATH_DEFINES
 
 #include "state_estimator.h"
-#include "collision_detect_functions.h"
+#include "shared/global_utils.h"
 #include "constants.h"
 #include <cmath>
 #include <limits>

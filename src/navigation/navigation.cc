@@ -39,6 +39,7 @@
 #include <vector>
 #include <iostream>
 #include "clock.h"
+#include "shared/global_utils.h"
 
 
 using Eigen::Vector2f;
