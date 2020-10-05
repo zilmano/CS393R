@@ -51,6 +51,7 @@
 #include "particle_filter.h"
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
+#include "observation_model.h"
 
 using amrl_msgs::VisualizationMsg;
 using geometry::line2f;

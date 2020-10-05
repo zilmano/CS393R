@@ -36,6 +36,15 @@
 
 #include "vector_map/vector_map.h"
 
+
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xio.hpp"
+#include "xtensor/xbuilder.hpp"
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xmath.hpp"
+#include "xtensor/xindex_view.hpp"
+#include "xsimd/xsimd.hpp"
+
 using std::cout;
 using std::endl;
 using std::string;
