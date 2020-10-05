@@ -28,6 +28,7 @@
 #include "world.h"
 #include "collisionplanner.h"
 #include "state_estimator.h"
+#include <iostream>
 
 #ifndef NAVIGATION_H
 #define NAVIGATION_H
@@ -67,7 +68,7 @@ class Navigation {
   void ObservePointCloud(const std::vector<Eigen::Vector2f>& cloud,
                          double time);
 
-  // Main function called continously from main
+  // Main function called continuously from main
   void Run();
   // Used to set the next target pose.
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
@@ -82,6 +83,14 @@ class Navigation {
 
    float ComputeDis2Stop();
    std::vector<Eigen::Vector2f> ConvertLaserCloudToOdomFrame();
+   std::vector<Eigen::Vector2f> ConvertLaserCloudToOtherFrame(const Vector2f& loc,float angle);
+   inline void PrintDbg(const std::string &msg
+
+   ) {
+       if ((step_num_ % Debug::dbg_print_rate) == 0) {
+           std::cout << "DBG::<STEP " << step_num_ << "> " << msg << std::endl;
+       }
+   };
 
 
  private:
@@ -109,10 +118,15 @@ class Navigation {
   // Added member variables start here
 
   std::vector<Eigen::Vector2f> laser_pcloud_local_frame_;
+  PoseSE2 estimate_pose_local_frame_;
+
   PlotPublisher plot_publisher_;
+
   Eigen::Vector2f init_loc_;
   bool is_initloc_inited_;
   
+  // Counter for step since start-up
+  unsigned int step_num_;
   // Representation of our world.
   World world_;
     

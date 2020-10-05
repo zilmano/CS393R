@@ -11,58 +11,11 @@
 #include <list>
 #include <vector>
 #include "eigen3/Eigen/Dense"
+#include "shared/global_utils.h"
 
 using Eigen::Vector2f;
-
-
-struct PoseSE2 {
-        PoseSE2(): loc{0,0}, angle{0} {};
-        PoseSE2(float x,float y,float angle_init):
-                loc{x,y}, angle{angle_init} {};
-        PoseSE2(Vector2f loc, float angle_init):
-                loc{loc}, angle{angle_init} {};
-
-        Vector2f loc;
-        float angle;
-
-        const PoseSE2 operator*(double ratio) {
-            return PoseSE2(ratio*(this->loc),ratio*(this->angle));
-        }
-
-        const PoseSE2 operator+(const PoseSE2& rhs) {
-            PoseSE2 result;
-            result.loc = this->loc + rhs.loc;
-            result.angle = this->angle + rhs.angle;
-            return result;
-        }
-
-        PoseSE2& operator+=(const PoseSE2& rhs) {
-            this->loc += rhs.loc;
-            this->angle += rhs.angle;
-            return *this;
-        }
-};
-
-/*const PoseSE2 operator*(double ratio, const PoseSE2& rhs ) {
-            return PoseSE2(ratio*(rhs.loc),ratio*(rhs.angle));
-}*/
-
-// Oleg TODO: consolidate with latencytracker class.
-struct OdomMeasurement {
-    float vel;
-    float c;
-    Eigen::Vector2f loc;
-    float angle;
-    double timestamp;
-};
-
-struct ControlCommand {
-    ControlCommand(float vel_init,float c_init,double timestamp_init):
-                   vel(vel_init),c(c_init),timestamp(timestamp_init) {};
-    float vel;
-    float c;
-    double timestamp;
-};
+using navigation::PoseSE2;
+using navigation::ControlCommand;
 
 
 class StateEstimator {
@@ -81,36 +34,54 @@ public:
     };*/
 
     void update_estimation(const Vector2f& observation_loc, float observation_angle,
-                           double curr_time, const ControlCommand& curr_command);
+                           double curr_time);
 
-    void set_latency(float observation_latency,float actuation_latency) {
+    void transform_p_cloud_tf_obs_to_act(
+            const std::vector<Vector2f>& point_cloud,
+            std::vector<Vector2f>& point_cloud_actuation_tf);
+
+    inline void set_latency(float observation_latency,float actuation_latency) {
         observation_latency_ = observation_latency;
         actuation_latency_ = actuation_latency;
     }
 
-    PoseSE2 estimate_state_curr_time(double curr_time) {
+    inline void add_control(const ControlCommand& curr_command) {
+        cmd_quasi_queue_.push_back(curr_command);
+    }
+
+    inline PoseSE2 estimate_state_curr_time(double curr_time) {
         if (curr_time != curr_time_) {
             throw "StateEstimator:: StateEstimator needs to be updated with 'update_estimation()' prior ti running 'estimate_state_for_curr_time()";
         }
         return pose_estimates_[pose_est_index_of_curr_step_];
     };
-    PoseSE2 estimate_state_cmd_actuation_time(double curr_time) {
+
+    inline PoseSE2 estimate_state_cmd_actuation_time(double curr_time) {
         if (curr_time != curr_time_) {
             throw "StateEstimator:: StateEstimator needs to be updated with 'update_estimation()' prior ti running 'estimate_state_for_curr_time()";
         }
-        return pose_estimates_[pose_estimates_.size()-1];
+        return actuation_time_pose_estimate_;
     };
+
+    inline std::vector<PoseSE2>* get_pose_estimates_queue() {
+        return &pose_estimates_;
+    }
+
+    inline std::list<ControlCommand>* get_control_cmd_queue() {
+        return &cmd_quasi_queue_;
+    }
 
 
 
 private:
     float calc_arc_path(float theta, float curvature);
-    PoseSE2 pose_change_one_step_forward(float vel, float curvature);
+    PoseSE2 pose_change_one_step_forward(float vel, float curvature,float period_ratio=1);
 
 private:
     double actuation_latency_;
     double observation_latency_;
     double curr_time_;
+
 
     // index of curr_time step in pose_estimation vector
     unsigned long pose_est_index_of_curr_step_;
@@ -122,6 +93,7 @@ private:
 
     // Estimated poses since that latest known odometry
     std::vector<PoseSE2> pose_estimates_;
+    PoseSE2 actuation_time_pose_estimate_;
 
 
 };
