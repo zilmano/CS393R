@@ -3,7 +3,7 @@
 //
 
 #include "pointcloud.h"
-#include "constants.h"
+#include "shared/constants.h"
 #include "xtensor/xtensor.hpp"
 #include "xtensor/xio.hpp"
 #include "xtensor/xbuilder.hpp"

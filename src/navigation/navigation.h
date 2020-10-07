@@ -23,7 +23,7 @@
 
 #include "eigen3/Eigen/Dense"
 #include "latencytracking.hpp"
-#include "constants.h"
+#include "shared/constants.h"
 #include "plotpublisher.h"
 #include "world.h"
 #include "collisionplanner.h"

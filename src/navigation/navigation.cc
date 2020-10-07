@@ -211,14 +211,16 @@ namespace navigation {
             float best_c = 0;
             float best_fpl = 0;
             std::cout << "RePlan  " << std::endl << "--------------" << std::endl;
-            //std::vector<Vector2f> work_point_cloud = laser_pcloud_local_frame_;
-            std::vector<Vector2f> work_point_cloud;
+            std::vector<Vector2f> work_point_cloud = laser_pcloud_local_frame_;
+            /*std::vector<Vector2f> work_point_cloud;
             state_estimator_.transform_p_cloud_tf_obs_to_act(
                             laser_pcloud_local_frame_,
-                            work_point_cloud);
+                            work_point_cloud);*/
+            std::cout << "Number of paths to go check:" <<  candidate_curvatures.size() << std::endl;
+            std::cout << "Max corvature size:" << candidate_curvatures[candidate_curvatures.size()-1] << std::endl;
             for (size_t i = 0; i < candidate_curvatures.size(); ++i) {
                 float candidate = candidate_curvatures[i];
-                //std::cout << "    candidate:  " << candidate << std::endl;
+                std::cout << "    RePlan::candidate:  " << candidate << std::endl;
                 auto colliding_points =
                         collision_planner_.select_potential_collision(candidate, work_point_cloud);
                 if (colliding_points.empty()) {
@@ -229,11 +231,13 @@ namespace navigation {
                 else {
                     float fpl;
                     if (fabs(candidate) < GenConsts::kEpsilon) {
-                        fpl = collision::check_collision_curvature_zero(work_point_cloud);
+                        fpl = collision_planner_.calculate_shortest_collision_flat(work_point_cloud);
                         std::cout << "    RePlan::For C==0 FPL is " << fpl << std::endl;
                     } else {
                         float angle = collision_planner_.calculate_shortest_collision(candidate, colliding_points);
                         fpl = (1/candidate)*angle;
+                        std::cout << "    RePlan::Angle " << angle << " FPL "<< fpl << std::endl;
+
                         if (candidate > 0) {
                             visualization::DrawArc(Vector2f(0,1/candidate), 1/candidate,0,
                                                    angle,0x99CCFF,local_viz_msg_);
@@ -243,18 +247,21 @@ namespace navigation {
                         }
                     }
 
-                    //visualization::DrawPathOption(candidate, fpl, fpl, local_viz_msg_);
-                    if (fabs(fpl-PhysicsConsts::radar_max_range) <
-                        PhysicsConsts::radar_noise_std) {
+                    visualization::DrawPathOption(candidate, fpl, 0, local_viz_msg_);
+                    if ((candidate == 0 && fabs(fpl-PhysicsConsts::radar_max_range) <
+                        PhysicsConsts::radar_noise_std) || std::isinf(fpl)) {
                         if (fabs(candidate) < GenConsts::kEpsilon) {
                             std::cout << "  RePlan::Curve Zero is clear."  << std::endl;
                         }
                         best_c = candidate;
+                        std::cout << "    RePlan:: Breaking after finding a path without any obstacles due to Radar Max Range ";
+                        best_fpl = fpl;
+                        collision_planner_.calculate_shortest_collision(candidate, colliding_points, local_viz_msg_);
                         break;
                     }
                     //td::cout << "       FPL:  " << fpl << std::endl;
                     if (fpl > best_fpl) {
-                        //std::cout << "       Setting as best candidate." << fpl << std::endl;
+                        std::cout << "       Setting as best candidate. C: " << candidate << "FPL:" << fpl << std::endl;
                         best_fpl = fpl;
                        best_c = candidate;
                     }
@@ -272,7 +279,8 @@ namespace navigation {
                                            2.35,0xFF0000,local_viz_msg_);
             else
                 visualization::DrawLine(Vector2f(0,0),Vector2f(4,0),0xFF0000,local_viz_msg_);
-            visualization::DrawPathOption(best_c, best_fpl,  0, local_viz_msg_);
+
+            visualization::DrawPathOption(best_c, best_fpl,  1, local_viz_msg_);
             return best_c;
         }
 

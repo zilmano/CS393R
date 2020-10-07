@@ -12,7 +12,7 @@
 #include <xtensor/xtensor.hpp>
 #include <xtensor/xmath.hpp>
 #include <xtensor-blas/xlinalg.hpp>
-#include "constants.h"
+#include "shared/constants.h"
 #include "plotpublisher.h"
 #include "clock.h"
 

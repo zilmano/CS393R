@@ -5,7 +5,6 @@
 #include <vector>
 #include <algorithm>
 #include "collisionplanner.h"
-#include "constants.h"
 #include "cmath"
 #include "xtensor/xmath.hpp"
 #include "xtensor/xadapt.hpp"

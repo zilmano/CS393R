@@ -8,7 +8,7 @@
 #include "world.h"
 #include "xtensor/xtensor.hpp"
 #include <vector>
-#include "constants.h"
+#include "shared/constants.h"
 #include "visualization/visualization.h"
 #include "amrl_msgs/VisualizationMsg.h"
 
