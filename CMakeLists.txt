@@ -27,9 +27,6 @@ MESSAGE(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
-SET(libs roslib roscpp rosbag glog gflags amrl-shared-lib boost_system lua5.1
-    pthread xtensor xtensor-blas xsimd)
-
 ADD_LIBRARY(shared_library
             src/visualization/visualization.cc
             src/vector_map/vector_map.cc)
@@ -56,7 +53,8 @@ endif()
 message(STATUS "BLAS VENDOR:    " ${BLA_VENDOR})
 message(STATUS "BLAS LIBRARIES: " ${BLAS_LIBRARIES})
 
-
+SET(libs roslib roscpp rosbag glog gflags amrl-shared-lib boost_system lua5.1
+        pthread xtensor xtensor-blas xsimd ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 
 ROSBUILD_ADD_EXECUTABLE(slam
                         src/slam/slam_main.cc
@@ -66,7 +64,9 @@ TARGET_LINK_LIBRARIES(slam shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(particle_filter
                         src/particle_filter/particle_filter_main.cc
-                        src/particle_filter/particle_filter.cc)
+                        src/particle_filter/particle_filter.cc
+                        src/particle_filter/observation_model.cpp
+        )
 TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 
 ROSBUILD_ADD_EXECUTABLE(navigation
@@ -78,11 +78,17 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/collisionplanner.cpp
                         src/navigation/state_estimator.cc
         )
-TARGET_LINK_LIBRARIES(navigation shared_library ${libs} ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+TARGET_LINK_LIBRARIES(navigation shared_library ${libs} )
 
-target_include_directories(navigation
-        PUBLIC
+target_include_directories(navigation PUBLIC
           ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas)
+
+target_include_directories(particle_filter PUBLIC
+        ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas)
+
+target_include_directories(slam PUBLIC
+        ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas)
+
 
 ADD_EXECUTABLE(eigen_tutorial
                src/eigen_tutorial.cc)

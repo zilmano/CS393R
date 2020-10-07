@@ -16,7 +16,7 @@ build_type=Release
 
 all: build/CMakeLists.txt.copy
 	$(info Build_type is [${build_type}])
-	$(MAKE) --no-print-directory -C build
+	$(MAKE) -j --no-print-directory -C build
 
 # Sets the build type to Debug.
 set_debug:
