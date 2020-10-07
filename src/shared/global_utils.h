@@ -196,6 +196,7 @@ namespace tf {
 
 }
 
+/*
 namespace geometry {
     using std::pow;
     template <typename T>
@@ -251,7 +252,7 @@ namespace geometry {
           }
         return part_in_circle;
       }
-
+*/
 }
 
 #endif // GLOBAL_UTILS_H_
