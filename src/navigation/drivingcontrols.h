@@ -27,6 +27,47 @@ class DrivingControls {
 	 */
 public:
     // TOC
+    void update_current_speed(float dis2stop, float target_dist, float spd_inc, bool initial_loc_init, float curr_spd, float c_p){
+        float dis2target = target_dist - _dist_traveled;        
+        
+        if (dis2target <= 0 or !initial_loc_init){
+            new_velocity = 0;
+        } else if (dis2stop >= dis2target) {
+            curr_spd -= spd_inc + dis2target * c_p;
+            new_velocity = curr_spd;
+        } else if (curr_spd >= PhysicsConsts::max_vel) {
+            curr_spd = PhysicsConsts::max_vel;
+            new_velocity = curr_spd;
+        } else {
+            curr_spd += spd_inc;
+            new_velocity = curr_spd;
+        }
+    }
+
+    float update_dist_traveled(float dist_traveled, float curr_spd, float actuation_latency){
+        dist_traveled += curr_spd * actuation_latency;
+        _dist_traveled = dist_traveled;
+        return dist_traveled;
+    }
+
+    float get_new_velocity(){
+        return new_velocity;
+    }
+
+        // double check that velocity isn't exceeding max velocity setting
+    float drive_msg_check(float drv_msg){
+        if (drv_msg > 1.0){
+            drv_msg = 1;
+        } else if (drv_msg < 0.0){
+            drv_msg = 0;
+        } else {
+            drv_msg = drv_msg;
+        }
+        return drv_msg;
+    }
+
+
+    /*
     void update_current_speed(float distance2stop, bool initialloc_init_, float current_speed, float current_distance, float speed_increment, float c_p, float target){
         if (current_distance <= 0 or !initialloc_init_){
             new_velocity = 0;
@@ -118,9 +159,6 @@ public:
         return center;
     }
 
-    float get_velocity(){
-        return new_velocity;
-    }
 
     float get_angular_velocity(float curvature){
         return new_velocity * curvature;
@@ -149,12 +187,10 @@ public:
 
         return theta;
     }
-
+    */
 private:
+    float _dist_traveled;
     float new_velocity;
-    float new_angular_velocity;
-
-
 
 };
 

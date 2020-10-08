@@ -73,8 +73,7 @@ namespace navigation {
         nav_goal_angle_(0),
         plot_publisher_{n},
         robot_curvature_(0),
-        robot_center_of_turning_(0, 0),
-        robot_target_loc_(0, 0),
+        dist_traveled_(0),
         is_initloc_inited_{false},
         world_(SamplingConsts::downsample_rate_space, SamplingConsts::downsample_rate_time),
         latency_tracker_{plot_publisher_, 0.05f},
@@ -106,7 +105,6 @@ namespace navigation {
                                     float ang_vel) {
         if (!is_initloc_inited_) {
             init_loc_ = robot_loc_;
-            init_angle_ = driver.calculate_initial_angle(robot_angle_, robot_curvature_);
             // Oleg Question: what is wrong with loc zero, not sure I understand how this works.
             auto is_loc_finite = init_loc_.allFinite();
             auto is_loc_nonzero = !init_loc_.isZero();
@@ -273,36 +271,26 @@ namespace navigation {
     float Navigation::SetOptimalVelocity(float target_dist) {
         float c_p = 0.01f;
         float epsilon = 0.005f;
+        float actuation_latency = latency_tracker_.estimate_latency() * PhysicsConsts::act_latency_portion;
         auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
-
-        // Distance to stop {Vt^2 - V0^2 = 2ad}
-        // auto v0_norm = robot_vel_.norm();
-        // auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
         float dis2stop = ComputeDis2Stop() + epsilon;
-
-        // curvature determined by collision planner 
-        float desired_curvature = RePlanPath();
-        robot_curvature_ = RePlanPath();      
-        
-        // curvature determined by collision planner
-        float arc_length_distance = target_dist;   
-        
-        // if the curvature changes, a new "target location" is created. The center of turning will need to be updated.
-        if (desired_curvature != robot_curvature_){
-            init_angle_ = driver.calculate_initial_angle(robot_angle_, robot_curvature_);
-        }
-        
-        robot_center_of_turning_ = driver.get_center_of_turning(robot_curvature_, robot_loc_, robot_angle_);
-        robot_target_loc_ = driver.calculate_target_location(arc_length_distance, robot_curvature_, init_angle_, robot_center_of_turning_);
-        
-        // distance until end of arc path
-        auto curr_dist = driver.calculate_current_distance(robot_curvature_, robot_loc_, robot_target_loc_, arc_length_distance);
         auto curr_spd = robot_vel_.norm();
 
-        // update current speed
-        driver.update_current_speed(dis2stop, is_initloc_inited_, curr_spd, curr_dist, spd_inc, c_p, target_dist);
+        // curvature determined by collision planner 
+        float desired_curvature = RePlanPath();   
         
-        drive_msg_.velocity = driver.get_velocity();
+        // if the curvature changes, reset the dist traveled on the arc. 
+        if (desired_curvature != robot_curvature_){
+            dist_traveled_ = 0;
+            robot_curvature_ = desired_curvature;
+        }
+
+        driver.update_dist_traveled(dist_traveled_, curr_spd, actuation_latency);
+
+        // update current speed
+        driver.update_current_speed(dis2stop, target_dist, spd_inc, is_initloc_inited_, curr_spd, c_p);
+        
+        drive_msg_.velocity = driver.get_new_velocity();
         drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
 
         return drive_msg_.velocity;

@@ -113,8 +113,7 @@ class Navigation {
   PlotPublisher plot_publisher_;
   
   float robot_curvature_;
-  Eigen::Vector2f robot_center_of_turning_;
-  Eigen::Vector2f robot_target_loc_;
+  float dist_traveled_;
 
   Eigen::Vector2f init_loc_;
   float init_angle_;
