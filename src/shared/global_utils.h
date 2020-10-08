@@ -10,6 +10,7 @@
 
 #include "eigen3/Eigen/Dense"
 #include "constants.h"
+#include "glog/logging.h"
 #include "math/line2d.h"
 #include "math/math_util.h"
 #include <iostream>
@@ -46,23 +47,23 @@ namespace visualization {
 
 namespace navigation {
     struct PoseSE2 {
-            inline explicit PoseSE2(): loc{0,0}, angle{0} {};
-            inline explicit PoseSE2(float x,float y,float angle_init):
+            explicit PoseSE2(): loc{0,0}, angle{0} {};
+            explicit PoseSE2(float x,float y,float angle_init):
                     loc{x,y}, angle{angle_init} {};
-            inline explicit PoseSE2(Vector2f loc, float angle_init):
+            explicit PoseSE2(Vector2f loc, float angle_init):
                     loc{loc}, angle{angle_init} {};
 
             Vector2f loc;
             float angle;
 
-            inline const PoseSE2 operator+(const PoseSE2& rhs) {
+            const PoseSE2 operator+(const PoseSE2& rhs) {
                 PoseSE2 result;
                 result.loc = this->loc + rhs.loc;
                 result.angle = this->angle + rhs.angle;
                 return result;
             }
 
-            inline PoseSE2& operator+=(const PoseSE2& rhs) {
+            PoseSE2& operator+=(const PoseSE2& rhs) {
                 this->loc += rhs.loc;
                 this->angle += rhs.angle;
                 return *this;
@@ -83,7 +84,7 @@ namespace navigation {
     };
 
     struct ControlCommand {
-        inline explicit ControlCommand(float vel_init,float c_init,double timestamp_init):
+        explicit ControlCommand(float vel_init,float c_init,double timestamp_init):
                        vel(vel_init),c(c_init),timestamp(timestamp_init) {};
         float vel;
         float c;
@@ -196,46 +197,91 @@ namespace tf {
 
 }
 
-/*
+
 namespace geometry {
-    using std::pow;
     template <typename T>
-    inline bool is_point_in_circle(const Vector2f& center,float radius,Vector2f point) {
+    bool is_point_in_circle(const Eigen::Matrix<T,2,1>& center,
+                            float radius,
+                            const Eigen::Matrix<T,2,1>& point) {
         return (center-point).norm() < radius + GenConsts::kEpsilon;
     }
 
-    inline Line<float> get_sub_segment_in_circle(const Line<float>& segment,
-                                                 const Vector2f& center,
-                                                 float radius) {
+    template <typename T>
+    Line<T> get_sub_segment_in_circle(const Line<T>& segment,
+                                      const Eigen::Matrix<T,2,1>& center,
+                                      float radius) {
 
        if (is_point_in_circle(center, radius, segment.p0) &&
-                is_point_in_circle(center, radius, segment.p1))
+                is_point_in_circle(center, radius, segment.p1)) {
            return segment;
+       }
 
        // Calculate intersection points between circle and segment's line.
-       float a = (segment.p1.y()-segment.p0.y()/segment.p1.x()-segment.p0.x());
-       float b = segment.p1.y() - a*segment.p1.x();
-       // Solution to equation set
-       // r^2 = (x-c_x)^2 + (y-c_y)^2
-       // y = ax+b
-       // is solving the SqEq (1+a)x^2 + (2ab-2c_x-2c_y*a)x+(c_x^2 + c_y^2 + b^2 - r^2 -2c_y*b = 0
-       float x_intersect_1, x_intersect_2;
-       auto num_intersections = math_util::SolveQuadratic(
-           1+a,
-           2(a*b - center.x() - a*center.y()),
-           pow(center.x(),2)+ pow(center.y(),2) + pow(b,2)- pow(radius,2)- 2*b*center.y(),
-           &x_intersect_1, &x_intersect_2);
+       Vector2f intersect_point_1;
+       Vector2f intersect_point_2;
+       unsigned int num_intersections;
+       if (segment.p1.x()-segment.p0.x() < GenConsts::kEpsilon) {
+           /*
+            Solution to equation set
+                  r^2 = (x-c_x)^2 + (y-c_y)^2
+                  x = b
+            is solving the SqEq:
+                  y^2 + -2c_y*y+(b-c_x)^2+c_y^2-R^2) = 0
+           */
+           float y_intersect_1, y_intersect_2;
+           float b = segment.p1.x();
+           num_intersections = math_util::SolveQuadratic(
+                          1.0f,
+                          -2*center.y(),
+                          (math_util::Sq(b-center.x()) +
+                           math_util::Sq(center.y()) -
+                           math_util::Sq(radius)),
+                          &y_intersect_1, &y_intersect_2);
 
+           if (num_intersections == 2) {
+              intersect_point_1 << b,y_intersect_1;
+              intersect_point_2 << b,y_intersect_2;
+          }
+      } else {
+           float x_intersect_1, x_intersect_2;
+           float a = (segment.p1.y()-segment.p0.y())/(segment.p1.x()-segment.p0.x());
+           float b = segment.p1.y() - a*segment.p1.x();
+           /*
+             Solution to equation set
+                   r^2 = (x-c_x)^2 + (y-c_y)^2
+                   y = ax+b
+             is solving the SqEq:
+                   (1+a^2)x^2 + (2ab-2c_x-2c_y*a)x+(c_x^2 + c_y^2 + b^2 - r^2 -2c_y*b = 0
+            */
+           num_intersections = math_util::SolveQuadratic(
+               1+math_util::Sq(a),
+               2*(a*b - center.x() - a*center.y()),
+               math_util::Sq(center.x())+ math_util::Sq(center.y()) +
+               math_util::Sq(b)- math_util::Sq(radius)- 2*b*center.y(),
+               &x_intersect_1, &x_intersect_2);
+
+           if (num_intersections == 2) {
+               intersect_point_1 << x_intersect_1,a*x_intersect_1+b;
+               intersect_point_2 << x_intersect_2,a*x_intersect_2+b;
+           }
+      }
+
+       Line<float> part_in_circle;
        if (num_intersections < 2) {
-           return Line<float>(Vector2f(0,0),Vector2f(0,0));
+           part_in_circle.Set(Vector2f(0,0),Vector2f(0,0));
        } else {
-           Vector2f intersect_point_1(x_intersect_1,a*x_intersect_1+b);
-           Vector2f intersect_point_2(x_intersect_2,a*x_intersect_1+b);
-           Line<float> part_in_circle;
-
            if (!is_point_in_circle(center, radius, segment.p0) &&
                !is_point_in_circle(center, radius, segment.p1)) {
-              part_in_circle.Set(intersect_point_1, intersect_point_2);
+               if (IsBetween(segment.p0,segment.p1,
+                             intersect_point_1,
+                             GenConsts::kEpsilon)
+                   && IsBetween(segment.p0,segment.p1,
+                                intersect_point_2,
+                                GenConsts::kEpsilon)) {
+                   part_in_circle.Set(intersect_point_1, intersect_point_2);
+               } else {
+                   part_in_circle.Set(Vector2f(0,0),Vector2f(0,0));
+               }
            } else {
                Vector2f inside_point;
                if (is_point_in_circle(center, radius, segment.p0)) {
@@ -244,15 +290,18 @@ namespace geometry {
                    inside_point = segment.p1;
                }
 
-               if (IsBetween(segment.p0,segment.p1,intersect_point_1,GenConsts::kEpsilon)) {
+               if (IsBetween(segment.p0,segment.p1,
+                             intersect_point_1,
+                             GenConsts::kEpsilon)) {
                    part_in_circle.Set(inside_point,intersect_point_1);
                } else {
                    part_in_circle.Set(inside_point,intersect_point_2);
                }
-          }
-        return part_in_circle;
-      }
+           }
+       }
 
-}*/
+       return part_in_circle;
+    }
+}
 
 #endif // GLOBAL_UTILS_H_
