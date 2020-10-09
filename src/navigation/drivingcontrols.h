@@ -27,31 +27,35 @@ class DrivingControls {
 	 */
 public:
     // TOC
-    void update_current_speed(float dis2stop, float target_dist, float spd_inc, bool initial_loc_init, float curr_spd, float c_p){
-        float dis2target = target_dist - _dist_traveled;        
+    void update_current_speed(float dis2stop, float spd_inc, bool initial_loc_init, float curr_spd, float c_p){
+        float dis2target = _target_dist - _dist_traveled;        
         
         if (dis2target <= 0 or !initial_loc_init){
-            new_velocity = 0;
+            _new_velocity = 0;
         } else if (dis2stop >= dis2target) {
             curr_spd -= spd_inc + dis2target * c_p;
-            new_velocity = curr_spd;
+            _new_velocity = curr_spd;
         } else if (curr_spd >= PhysicsConsts::max_vel) {
             curr_spd = PhysicsConsts::max_vel;
-            new_velocity = curr_spd;
+            _new_velocity = curr_spd;
         } else {
             curr_spd += spd_inc;
-            new_velocity = curr_spd;
+            _new_velocity = curr_spd;
         }
     }
 
-    float update_dist_traveled(float dist_traveled, float curr_spd, float actuation_latency){
-        dist_traveled += curr_spd * actuation_latency;
-        _dist_traveled = dist_traveled;
-        return dist_traveled;
+    float update_dist_traveled(float curr_spd, float actuation_latency, float target_dist, float curvature){
+        if(target_dist != _target_dist or curvature != _curvature){
+            _target_dist = target_dist;
+            _curvature = curvature;
+            _dist_traveled = 0;
+        }
+        _dist_traveled += curr_spd * actuation_latency;
+        return _dist_traveled;
     }
 
     float get_new_velocity(){
-        return new_velocity;
+        return _new_velocity;
     }
 
         // double check that velocity isn't exceeding max velocity setting
@@ -190,7 +194,9 @@ public:
     */
 private:
     float _dist_traveled;
-    float new_velocity;
+    float _new_velocity;
+    float _target_dist;
+    float _curvature;
 
 };
 

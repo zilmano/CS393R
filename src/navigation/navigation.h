@@ -75,7 +75,7 @@ class Navigation {
 
   //Added public methods go in this section
   float RePlanPath();
-  float SetOptimalVelocity(float target_dist=0);
+  float SetOptimalVelocity(float target_dist=0, float curvature=0);
   void Test();
   
   // Added private methods go in this section
@@ -111,9 +111,6 @@ class Navigation {
 
   std::vector<Eigen::Vector2f> laser_pcloud_local_frame_;
   PlotPublisher plot_publisher_;
-  
-  float robot_curvature_;
-  float dist_traveled_;
 
   Eigen::Vector2f init_loc_;
   float init_angle_;
