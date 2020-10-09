@@ -311,43 +311,22 @@ namespace navigation {
         return best_c;
     }*/
 
-    float Navigation::SetOptimalVelocity(float target_dist) {
+    float Navigation::SetOptimalVelocity(float target_dist, float curvature) {
         float c_p = 0.01f;
         float epsilon = 0.005f;
+        float actuation_latency = latency_tracker_.estimate_latency() * PhysicsConsts::act_latency_portion;
         auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
-
-        // Distance to stop {Vt^2 - V0^2 = 2ad}
-        // auto v0_norm = robot_vel_.norm();
-        // auto dis2stop = (0.0f - v0_norm * v0_norm) / (2.0f * -PhysicsConsts::max_acc) + epsilon;
         float dis2stop = ComputeDis2Stop() + epsilon;
-
-        // Current Distance
-        auto curr_dist = (robot_loc_ - init_loc_).norm();
         auto curr_spd = robot_vel_.norm();
-        target_dist = target_dist > 0 ? target_dist : Assignment0::target_dis;
 
-        if (curr_dist >= target_dist or !is_initloc_inited_) {
-            drive_msg_.velocity = 0;
-        } else if (curr_dist + dis2stop >= target_dist) {
-            curr_spd -= spd_inc + (target_dist - curr_dist) * c_p;
-            drive_msg_.velocity = curr_spd;
-        } else if (curr_spd >= PhysicsConsts::max_vel) {
-            curr_spd = PhysicsConsts::max_vel;
-            drive_msg_.velocity = curr_spd;
-        } else {
-            curr_spd += spd_inc;
-            drive_msg_.velocity = curr_spd;
-        }
+        // Update the distance traveled. If the target distance changed, the distance traveled would be reset
+        driver.update_dist_traveled(curr_spd, actuation_latency, target_dist, curvature);
 
-        drive_msg_.velocity = drive_msg_.velocity > 1.0 ? 1.0 : drive_msg_.velocity;
-        drive_msg_.velocity = drive_msg_.velocity < 0.0 ? 0.0 : drive_msg_.velocity;
-        //drive_msg_.velocity = 0.0f;
-        //drive_pub_.publish(drive_msg_);
-
-        //double curr_time = ros::Time::now().toSec();
-        //printf("Latency %.2f, latency samples %ld\n", latency_tracker).estimate_latency(), latency_tracker_.get_alllatencies().size());
-        //latency_tracker_.add_controls(VelocityControlCommand{drive_msg_.velocity, curr_time});
-        //plot_publisher_.publish_named_point("Ctrl cmd", Clock::now(), drive_msg_.velocity);
+        // update current speed
+        driver.update_current_speed(dis2stop, spd_inc, is_initloc_inited_, curr_spd, c_p);
+        
+        drive_msg_.velocity = driver.get_new_velocity();
+        drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
 
         return drive_msg_.velocity;
     }
@@ -399,8 +378,8 @@ namespace navigation {
 
         PrintDbg(dbg_msg.str());
 
-        RePlanPath();
-        SetOptimalVelocity(200);
+        float c = RePlanPath();
+        SetOptimalVelocity(200, c);
 
         drive_pub_.publish(drive_msg_);
 

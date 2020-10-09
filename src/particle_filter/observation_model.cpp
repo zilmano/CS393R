@@ -26,10 +26,10 @@ float ObservationModel::calculate_accumulated_loglikelihood(simd_vec_type &inter
 }
 
 float ObservationModel::calculate_normalized_weight(){
-
+    return 0;
 }
 
 float ObservationModel::calculate_total_weights(){
-
+    return 0;
 }
 

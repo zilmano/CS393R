@@ -26,6 +26,7 @@
 #include "shared/constants.h"
 #include "plotpublisher.h"
 #include "world.h"
+#include "drivingcontrols.h"
 #include "collisionplanner.h"
 #include "state_estimator.h"
 #include <iostream>
@@ -75,7 +76,7 @@ class Navigation {
 
   //Added public methods go in this section
   float RePlanPath();
-  float SetOptimalVelocity(float target_dist=0);
+  float SetOptimalVelocity(float target_dist=0, float curvature = 0);
   void Test();
   
   // Added private methods go in this section
@@ -133,6 +134,9 @@ class Navigation {
   // Latency management
   LatencyTracking<VelocityMeasurement, VelocityControlCommand, true> latency_tracker_;
   unsigned long latency_size_;
+
+   // speed and turning controls
+  DrivingControls driver;
   
   // Processors
   StateEstimator state_estimator_;
