@@ -272,7 +272,7 @@ namespace geometry {
        Vector2f intersect_point_1;
        Vector2f intersect_point_2;
        unsigned int num_intersections;
-       if (segment.p1.x()-segment.p0.x() < GenConsts::kEpsilon) {
+       if (fabs(segment.p1.x()-segment.p0.x()) < GenConsts::kEpsilon) {
            /*
             Solution to equation set
                   r^2 = (x-c_x)^2 + (y-c_y)^2
@@ -317,7 +317,6 @@ namespace geometry {
                intersect_point_2 << x_intersect_2,a*x_intersect_2+b;
            }
       }
-
        Line<T> part_in_circle;
        if (num_intersections < 2) {
            part_in_circle.Set(Vector2f(0,0),Vector2f(0,0));
