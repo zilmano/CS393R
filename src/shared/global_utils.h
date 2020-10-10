@@ -10,17 +10,37 @@
 
 #include "eigen3/Eigen/Dense"
 #include "constants.h"
-#include "glog/logging.h"
 #include "math/line2d.h"
 #include "math/math_util.h"
 #include <iostream>
 #include <sstream>
 #include <cmath>
 #include "visualization/visualization.h"
+#include "sensor_msgs/LaserScan.h"
+#include <string>
+
+// Liyan's xtensor stuff
+#include "xtensor/xtensor.hpp"
+#include "xtensor/xio.hpp"
+#include "xtensor/xbuilder.hpp"
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xmath.hpp"
+#include "xtensor/xindex_view.hpp"
+#include "xsimd/xsimd.hpp"
+
 
 using Eigen::Vector2f;
 using amrl_msgs::VisualizationMsg;
 
+
+namespace debug {
+    template <typename T>
+    void print_line(const geometry::Line<T>& line,std::string prefix = "") {
+        std::cout << prefix << " segment: (" << line.p0.x() << ","
+             << line.p0.y() << ")-(" << line.p1.x()
+             << "," << line.p1.y() << ")" << std::endl;
+    }
+}
 
 namespace visualization {
 
@@ -195,8 +215,40 @@ namespace tf {
         return new_frame_loc;
     }
 
-}
+    // OLEG TODO: Ask Lyian to enable this one?
+    inline void proj_lidar_2_pts(const sensor_msgs::LaserScan& msg) {
+        uint32_t n_pts = msg.ranges.size();
+        float end_angle = msg.angle_min + msg.angle_increment * (n_pts - 1);
+        auto range_arr = xt::adapt(msg.ranges);
+        auto valid_mask = range_arr >= msg.range_min && range_arr <= msg.range_max;
+        auto lidar_angles = xt::linspace<float>(msg.angle_min, end_angle, n_pts);
+        auto x = xt::cos(lidar_angles) * range_arr;
+        auto y = xt::sin(lidar_angles) * range_arr;
+        auto pts = xt::stack(xt::xtuple(x, y), 1) + CarDims::laser_loc;
+        std::cout << pts << std::endl;
+    }
 
+    inline void proj_lidar_2_pts(const sensor_msgs::LaserScan& msg,
+                                 std::vector<Vector2f>& point_cloud,
+                                 const Vector2f& kLaserLoc,
+                                 bool filter_max_range=false) {
+      point_cloud.clear();
+      float curr_laser_angle = msg.angle_min;
+      for (size_t i = 0; i < msg.ranges.size(); ++i) {
+        float curr_range = msg.ranges[i];
+        if (curr_range >= msg.range_min && curr_range <= msg.range_max) {
+          if (!filter_max_range ||
+              curr_range <= (msg.range_max-PhysicsConsts::radar_noise_std)) {
+            float x = cos(curr_laser_angle)*curr_range;
+            float y = sin(curr_laser_angle)*curr_range;
+            Vector2f baselink_loc(Vector2f(x,y) + kLaserLoc);
+            point_cloud.push_back(baselink_loc);
+          }
+        }
+        curr_laser_angle += msg.angle_increment;
+      }
+    }
+}
 
 namespace geometry {
     template <typename T>
@@ -266,7 +318,7 @@ namespace geometry {
            }
       }
 
-       Line<float> part_in_circle;
+       Line<T> part_in_circle;
        if (num_intersections < 2) {
            part_in_circle.Set(Vector2f(0,0),Vector2f(0,0));
        } else {
