@@ -27,6 +27,9 @@
 #include "shared/math/line2d.h"
 #include "shared/util/random.h"
 #include "vector_map/vector_map.h"
+//#include "glog/logging.h"
+
+#include "observation_model.h"
 
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
@@ -39,17 +42,30 @@ struct Particle {
   double weight;
 };
 
+struct PfParams {
+    explicit PfParams(): radar_downsample_rate(1),d_long(0),d_short(0),
+                         k_1(1), k_2(1), sigma_obs(1), gamma(1) {}
+    unsigned int radar_downsample_rate;
+    float d_long;
+    float d_short;
+    float k_1;
+    float k_2;
+    float sigma_obs;
+    float gamma;
+};
+
 class ParticleFilter {
  public:
   // Default Constructor.
-   ParticleFilter();
+  ParticleFilter();
 
   // Observe a new laser scan.
   void ObserveLaser(const std::vector<float>& ranges,
                     float range_min,
                     float range_max,
                     float angle_min,
-                    float angle_max);
+                    float angle_max,
+                    float angle_incr);
 
   // Observe new odometry-reported location.
   void ObserveOdometry(const Eigen::Vector2f& odom_loc,
@@ -72,6 +88,7 @@ class ParticleFilter {
               float range_max,
               float angle_min,
               float angle_max,
+              float angle_incr,
               Particle* p);
 
   // Resample particles.
@@ -80,12 +97,19 @@ class ParticleFilter {
   // For debugging: get predicted point cloud from current location.
   void GetPredictedPointCloud(const Eigen::Vector2f& loc,
                               const float angle,
-                              int num_ranges,
+                              unsigned int num_ranges,
                               float range_min,
                               float range_max,
                               float angle_min,
                               float angle_max,
                               std::vector<Eigen::Vector2f>* scan);
+  // Our added public members
+  void SetParams(const PfParams& params) {
+      pf_params_ = params;
+      obs_likelihood.setGamma(pf_params_.gamma);
+      obs_likelihood.setSigma(pf_params_.sigma_obs);
+
+  }
 
  private:
 
@@ -102,6 +126,16 @@ class ParticleFilter {
   Eigen::Vector2f prev_odom_loc_;
   float prev_odom_angle_;
   bool odom_initialized_;
+
+  // Our members
+  PfParams pf_params_;
+
+  ObservationModel obs_likelihood;
+
+
+
+
+
 };
 }  // namespace slam
 
