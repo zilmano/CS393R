@@ -43,6 +43,7 @@
 #include "ros/package.h"
 
 #include "config_reader/config_reader.h"
+#include "glog/logging.h"
 #include "shared/math/math_util.h"
 #include "shared/math/line2d.h"
 #include "shared/util/timer.h"
@@ -51,6 +52,13 @@
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
 #include "observation_model.h"
+
+// OLEG DBG:: Remove.
+#include <iostream>
+#include <shared/global_utils.h>
+using Eigen::Vector2f;
+using std::endl;
+using std::cout;
 
 using amrl_msgs::VisualizationMsg;
 using geometry::line2f;
@@ -67,7 +75,7 @@ using visualization::DrawPoint;
 using visualization::DrawLine;
 using visualization::DrawParticle;
 
-// Create command line arguements
+// Create command line arguments
 DEFINE_string(laser_topic, "/scan", "Name of ROS topic for LIDAR data");
 DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
 DEFINE_string(init_topic,
@@ -93,6 +101,11 @@ VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
 vector_map::VectorMap map_;
 vector<Vector2f> trajectory_points_;
+
+//OLEG TODO: remove debug variables
+Vector2f dbg_init_loc_;
+float dbg_init_angle_;
+
 
 void InitializeMsgs() {
   std_msgs::Header header;
@@ -179,8 +192,9 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
       msg.range_min,
       msg.range_max,
       msg.angle_min,
-      msg.angle_max);
-  PublishVisualization();
+      msg.angle_max,
+      msg.angle_increment);
+  //PublishVisualization();
 }
 
 void OdometryCallback(const nav_msgs::Odometry& msg) {
@@ -199,7 +213,7 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   localization_msg.pose.y = robot_loc.y();
   localization_msg.pose.theta = robot_angle;
   localization_publisher_.publish(localization_msg);
-  PublishVisualization();
+  //PublishVisualization();
 }
 
 void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
@@ -213,6 +227,54 @@ void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
          RadToDeg(init_angle));
   particle_filter_.Initialize(map, init_loc, init_angle);
   trajectory_points_.clear();
+  dbg_init_loc_ = init_loc;
+  dbg_init_angle_ = init_angle;
+}
+
+// OLEG TODO: remove DBG function maybe at the end
+void debug_get_sub_seg_in_circ() {
+  /*int i = 0;
+  Vector2f point(1, 8);
+  Vector2f center(5.6,8.2);
+  float r = 5;
+  cout << geometry::is_point_in_circle(center,r,point) << endl;
+  point << 9.935,10.71;
+  cout << geometry::is_point_in_circle(center,r,point) << endl;
+  point << 5.6,4.2;
+  cout << geometry::is_point_in_circle(center,r,point) << endl;*/
+
+  //Line<float> segment(Vector2f(2,5),Vector2f(18,5));
+  float r = 10;
+  Vector2f center(12.0517320633,8.622621104584);
+  Line<float> segment(Vector2f(10.2604,2.72384),Vector2f(3.33834,2.72384));
+  Line<float> result = geometry::get_sub_segment_in_circle(segment, center,r);
+  if (result.Length() < GenConsts::kEpsilon) {
+      cout << "not inside." << endl;
+  } else {
+      cout << "part inside: ( " << result.p0.x() << "," << result.p0.y() << "),("
+           << result.p1.x() << "," << result.p1.y() << ")" << endl;
+  }
+
+}
+
+void debug_get_predicted_pt_cld() {
+
+
+  static vector<Vector2f> scan;
+  //Vector2f loc(-7.93723344803,7.96144914627);
+  //Vector2f loc(15.1750001907, 8.67500019073);
+  particle_filter_.GetPredictedPointCloud(dbg_init_loc_, dbg_init_angle_,1000,0.2,10.0,
+                                         -2.35619449615,
+                                          2.35619449615,
+                                          &scan);
+  cout << "scan size:" << scan.size() << endl;
+  /*for (const auto &p : scan) {
+      cout << p.x()<< "," << p.y() << " ";
+  }*/
+  cout << endl;
+  ClearVisualizationMsg(vis_msg_);
+  visualization::DrawPointCloud(scan, 0xFF00, vis_msg_);
+  visualization_publisher_.publish(vis_msg_);
 }
 
 void ProcessLive(ros::NodeHandle* n) {
@@ -228,10 +290,17 @@ void ProcessLive(ros::NodeHandle* n) {
       FLAGS_odom_topic.c_str(),
       1,
       OdometryCallback);
+  //debug_get_sub_seg_in_circ();
   while (ros::ok() && run_) {
     ros::spinOnce();
-    PublishVisualization();
+
+    debug_get_predicted_pt_cld();
+    //PublishVisualization();
     Sleep(0.01);
+
+    /*if (i == 5)
+        break;
+    i += 1;*/
   }
 }
 
@@ -251,7 +320,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "particle_filter", ros::init_options::NoSigintHandler);
   ros::NodeHandle n;
   InitializeMsgs();
-  map_ = vector_map::VectorMap(CONFIG_map_name_);
+  //map_ = vector_map::VectorMap(CONFIG_map_name_);
 
   visualization_publisher_ =
       n.advertise<VisualizationMsg>("visualization", 1);
