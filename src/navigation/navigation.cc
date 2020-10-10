@@ -138,6 +138,7 @@ namespace navigation {
         float observation_latency = latency - actuation_latency;
         float curr_spd = robot_vel_.norm();
         float dis2stop = curr_spd * actuation_latency;
+        std::cout << "  Actuation Latency: " << actuation_latency << std::endl;
 
         for (curr_spd -= PhysicsConsts::max_acc * observation_latency; curr_spd >= 0.0;
              curr_spd -= PhysicsConsts::max_acc * observation_latency)
