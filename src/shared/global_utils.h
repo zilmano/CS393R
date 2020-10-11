@@ -32,10 +32,13 @@
 namespace debug {
     template <typename T>
     void print_line(const geometry::Line<T>& line,std::string prefix = "") {
-        std::cout << prefix << " segment: (" << line.p0.x() << ","
+        std::cout << prefix << " (" << line.p0.x() << ","
              << line.p0.y() << ")-(" << line.p1.x()
              << "," << line.p1.y() << ")" << std::endl;
     }
+    void inline print_loc(const Eigen::Vector2f& loc,std::string prefix = "") {
+            std::cout << prefix << " (" << loc.x() << "," << loc.y() << ")" << std::endl;
+        }
 }
 
 namespace visualization {
