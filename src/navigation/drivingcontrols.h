@@ -27,69 +27,39 @@ class DrivingControls {
 	 */
 public:
     // TOC
-    void update_current_speed(float distance2stop, bool initialloc_init_, float current_speed, float current_distance, float speed_increment, float c_p){
-        if (current_distance <= 0 or !initialloc_init_){
-            new_velocity = 0;
-        } else if (current_distance <= 0.18) {
-            current_speed -= speed_increment + current_distance * c_p;
-            new_velocity = current_speed;
-        } else if (current_speed >= PhysicsConsts::max_vel) {
-            current_speed = PhysicsConsts::max_vel;
-            new_velocity = current_speed;
-        } else {
-            current_speed += speed_increment;
-            new_velocity = current_speed;
-        }
-    }
-    
-    // distance until end of fpl
-    float calculate_current_distance(float curvature, Vector2f robot_location, Vector2f target, float arc_length){
-        float current_distance;
-        if (curvature >= 0){
-            current_distance = 1 / curvature * calculate_theta(robot_location, target, curvature);
-        } else {
-            current_distance = (-1) * 1 / curvature * calculate_theta(robot_location, target, curvature);
-        }
+    void update_current_speed(float dis2stop, float spd_inc, bool initial_loc_init, float curr_spd, float c_p){
+        float dis2target = _target_dist - _dist_traveled;        
         
-        return current_distance;
-    }
-    
-    // calculates cartesian coordinates of target location (end of fpl)
-    Vector2f calculate_target_location(float arc_length, float curvature, float init_angle, Vector2f center){
-        float theta = arc_length * curvature;
-        float x;
-        float y;
-        if (curvature > 10000){
-            curvature = 10000;
-        }
-        if (curvature < 0){
-            theta = 2 * M_PI - theta;
-            x = center.x() + 1/curvature * cos(init_angle - theta);
-            y = center.y() + 1/curvature * sin(init_angle - theta);
-        }
-        else {
-            x = center.x() + 1/curvature * cos(theta + init_angle);
-            y = center.y() + 1/curvature * sin(theta + init_angle);
-        }
-       
-        Vector2f target(x,y);
-
-        return target;
-    }
-    
-    // angle between target and robot location when new path is initialized
-    float calculate_initial_angle(float robot_angle, float curvature){
-        float theta;
-        if (curvature < 0) {
-            theta = robot_angle + M_PI/2;
+        if (dis2target <= 0 or !initial_loc_init){
+            _new_velocity = 0;
+        } else if (dis2stop >= dis2target) {
+            curr_spd -= spd_inc + dis2target * c_p;
+            _new_velocity = curr_spd;
+        } else if (curr_spd >= PhysicsConsts::max_vel) {
+            curr_spd = PhysicsConsts::max_vel;
+            _new_velocity = curr_spd;
         } else {
-            theta = robot_angle - M_PI/2;
+            curr_spd += spd_inc;
+            _new_velocity = curr_spd;
         }
-
-        return theta;
     }
 
-    // double check that velocity isn't exceeding max velocity setting
+    float update_dist_traveled(float curr_spd, float actuation_latency, float target_dist, float curvature){
+        if(target_dist != _target_dist or curvature != _curvature){
+            _target_dist = target_dist;
+            _curvature = curvature;
+            _dist_traveled = 0;
+        }
+        _dist_traveled += curr_spd * actuation_latency;
+
+        return _dist_traveled;
+    }
+
+    float get_new_velocity(){
+        return _new_velocity;
+    }
+
+        // double check that velocity isn't exceeding max velocity setting
     float drive_msg_check(float drv_msg){
         if (drv_msg > 1.0){
             drv_msg = 1;
@@ -100,61 +70,12 @@ public:
         }
         return drv_msg;
     }
-    
-    Vector2f get_center_of_turning(float curvature, Vector2f robot_location, float robot_angle){
-        if (curvature > 10000){
-            curvature = 10000;
-        }
-        float theta;
-        if (curvature < 0){
-            theta = robot_angle - M_PI/2;
-        } else {
-            theta = robot_angle + M_PI/2;
-        }
-
-        float x_center = robot_location.x() + 1/curvature * cos(theta);
-        float y_center = robot_location.y() + 1/curvature * sin(theta);
-        Vector2f center(x_center,y_center);
-        return center;
-    }
-
-    float get_velocity(){
-        return new_velocity;
-    }
-
-    float get_angular_velocity(float curvature){
-        return new_velocity * curvature;
-    }
-
-    Vector2f get_polar_coordinates(Vector2f robot_location){
-        float radius = robot_location.norm();
-        float angle = atan(robot_location.y()/robot_location.x());
-        Vector2f polar_coord(radius, angle);
-        return polar_coord;
-    }
-
-    // angle between two points based on center of turning
-    float calculate_theta(Vector2f starting_point, Vector2f ending_point, float curvature){
-        float dist_between_points = (ending_point - starting_point).norm();
-        float theta;
-
-        if(curvature >= 0){
-            theta = 2 * asin(0.5 * dist_between_points * curvature);
-            //theta = atan(ending_point.y()/ending_point.x()) - atan(starting_point.y()/starting_point.x());
-        }
-        else {
-            theta = (-1) * 2 * asin(0.5 * dist_between_points * curvature);
-            //theta = -(atan(ending_point.y()/ending_point.x()) - atan(starting_point.y()/starting_point.x()));
-        }
-
-        return theta;
-    }
 
 private:
-    float new_velocity;
-    float new_angular_velocity;
-
-
+    float _dist_traveled;
+    float _new_velocity;
+    float _target_dist;
+    float _curvature;
 
 };
 

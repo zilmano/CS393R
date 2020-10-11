@@ -213,7 +213,29 @@ void ParticleFilter::Resample() {
   // The current particles are in the `particles_` variable. 
   // Create a variable to store the new particles, and when done, replace the
   // old set of particles:
-  // vector<Particle> new_particles';
+  vector<Particle> new_particles;
+  vector<Eigen::Vector2f> number_line;
+  number_line.resize(weights_.size());
+  number_line[0] = Vector2f(0,weights_[0]);
+
+  for (size_t i = 1; i < number_line.size(); i++){
+    float lower = number_line[i-1].y();
+    float upper = number_line[i-1].y() + weights_[i];
+    number_line[i] = Vector2f(lower,upper);
+  }
+
+  for(size_t i = 0; i < particles_.size(); i++){
+    float x = rng_.UniformRandom(0,1);
+    for(size_t j = 0; j < number_line.size(); j++){
+      if((x > number_line[i].x()) and (x <= number_line[i].y())){
+        new_particles.push_back(particles_[j]);
+        break;
+      }
+    }
+  }
+
+  particles_ = new_particles;
+
   // During resampling: 
   //    new_particles.push_back(...)
   // After resampling:
@@ -221,9 +243,9 @@ void ParticleFilter::Resample() {
 
   // You will need to use the uniform random number generator provided. For
   // example, to generate a random number between 0 and 1:
-  float x = rng_.UniformRandom(0, 1);
-  printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
-         x);
+  //float x = rng_.UniformRandom(0, 1);
+  //printf("Random number drawn from uniform distribution between 0 and 1: %f\n",
+        
 }
 
 void ParticleFilter::ObserveLaser(const vector<float>& ranges,

@@ -14,12 +14,18 @@ public:
     ObservationModel(float gamma, float sigma);
 
     float calculate_accumulated_loglikelihood(simd_vec_type & intersections, simd_vec_type & observations);
+
     void setGamma(float gamma) {
       gamma_ = gamma;
     };
     void setSigma(float sigma) {
       sigma_= sigma;
     }
+
+    float calculate_normalized_weight();
+
+    float calculate_total_weights();
+
 private:
     float gamma_;
     float sigma_;

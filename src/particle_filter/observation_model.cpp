@@ -24,3 +24,13 @@ float ObservationModel::calculate_accumulated_loglikelihood(simd_vec_type &inter
     float acc = xt::sum(xt::adapt(log_likelihood))[0];
     return acc * -gamma_;
 }
+
+
+float ObservationModel::calculate_normalized_weight(){
+    return 0;
+}
+
+float ObservationModel::calculate_total_weights(){
+    return 0;
+}
+
