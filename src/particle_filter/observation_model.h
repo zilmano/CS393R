@@ -5,7 +5,7 @@
 #ifndef REPO_OBSERVATION_MODEL_H
 #define REPO_OBSERVATION_MODEL_H
 
-#include "constants.h"
+#include "shared/constants.h"
 #include "xsimd/xsimd.hpp"
 #include "common_def.h"
 
@@ -14,9 +14,15 @@ public:
     ObservationModel(float gamma, float sigma);
 
     float calculate_accumulated_loglikelihood(simd_vec_type & intersections, simd_vec_type & observations);
-
+    void setGamma(float gamma) {
+      gamma_ = gamma;
+    };
+    void setSigma(float sigma) {
+      sigma_= sigma;
+    }
 private:
-    float gamma, sigma;
+    float gamma_;
+    float sigma_;
 
 };
 
