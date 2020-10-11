@@ -39,6 +39,11 @@
 #include "shared/constants.h"
 #include "shared/global_utils.h"
 
+#include "ros/ros.h"
+#include "amrl_msgs/VisualizationMsg.h"
+#include "visualization/visualization.h"
+
+
 using geometry::line2f;
 using geometry::Line;
 using std::cout;
@@ -52,6 +57,11 @@ using vector_map::VectorMap;
 
 DEFINE_double(num_particles, 50, "Number of particles");
 
+namespace {
+    ros::Publisher* viz_pub_ = NULL;
+    amrl_msgs::VisualizationMsg* viz_msg_ = NULL;
+}
+
 namespace particle_filter {
 
 config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
@@ -60,7 +70,8 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    obs_likelihood(1,PhysicsConsts::radar_noise_std) {}
+    obs_likelihood(1,PhysicsConsts::radar_noise_std),
+    map_loaded_(false) {}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -73,8 +84,15 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             float range_max,
                                             float angle_min,
                                             float angle_max,
-                                            vector<Vector2f>* scan_ptr) {
-  vector<Vector2f>& scan = *scan_ptr;
+                                            vector<Vector2f>* scan_points_ptr,
+                                            vector<float>* scan_ranges_ptr) {
+
+  //if (!map_loaded_)
+  //    return;
+
+  cout << "GetPredictedPointCloud" << endl;
+  vector<Vector2f>& scan_points = *scan_points_ptr;
+  vector<float>& scan_ranges = *scan_ranges_ptr;
   // Compute what the predicted point cloud would be, if the car was at the pose
   // loc, angle, with the sensor characteristics defined by the provided
   // parameters.
@@ -82,10 +100,12 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   // expected observations, to be used for the update step.
 
   // Note: The returned values must be set using the `scan` variable:
-  scan.resize(num_ranges);
+  scan_points.resize(num_ranges);
+  scan_ranges.resize(num_ranges);
   // Fill in the entries of scan using array writes, e.g. scan[i] = ...
-  for (size_t i = 0; i < scan.size(); ++i) {
-    scan[i] = Vector2f(0, 0);
+  for (size_t i = 0; i < scan_ranges.size(); ++i) {
+    scan_points[i] = Vector2f(0, 0);
+    scan_ranges[i] = 0;
   }
 
   // Poor man's scene render returning the segments that are in radar range.
@@ -141,18 +161,19 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
               }
           }
       }
-      scan[range_index] = closest_intersection;
+      scan_points[range_index] = closest_intersection;
+      scan_ranges[dist_to_closest];
       beam_angle += angle_incr;
   }
 
 }
 
 void ParticleFilter::Update(const vector<float>& ranges,
+                            unsigned int num_ranges,
                             float range_min,
                             float range_max,
                             float angle_min,
                             float angle_max,
-                            float angle_incr,
                             Particle* p_ptr) {
   // Implement the update step of the particle filter here.
   // You will have to use the `GetPredictedPointCloud` to predict the expected
@@ -160,29 +181,30 @@ void ParticleFilter::Update(const vector<float>& ranges,
   // on the observation likelihood computed by relating the observation to the
   // predicted point cloud.
 
-  unsigned int n = pf_params_.radar_downsample_rate;
-  unsigned int downsample_truncated_pts = ((ranges.size()-1)%n);
-  int num_ranges = std::floor((ranges.size()-downsample_truncated_pts)/n)+1;
-  float angle_max_true = angle_min + (ranges.size()-downsample_truncated_pts)*angle_incr;
-
   static vector<Vector2f> scan;
   static vector<float> expected_ranges;
-  expected_ranges.resize(num_ranges);
-  scan.resize(num_ranges);
+  //cout << "update::" << endl;
   GetPredictedPointCloud(p_ptr->loc, p_ptr->angle,num_ranges, range_min,
-                         range_max, angle_min, angle_max_true, &scan);
+                         range_max, angle_min, angle_max, &scan, &expected_ranges);
 
   //OLEG: Sanity check. Remove later.
   if (scan.size() !=  expected_ranges.size())
       throw "Internal error. ParticleFilter::Update: scan size not equal expected_ranges size.";
 
-  for (size_t i= 0; i < expected_ranges.size(); ++i) {
-      expected_ranges[i] = scan[i].norm();
-  }
 
+  /*for (const auto &p : scan) {
+        cout << p.x()<< "," << p.y() << " ";
+  }*/
+  //cout << endl << "scan size:" << scan.size() << " " << expected_ranges.size() << endl;
+  if (viz_pub_) {
+      //cout << "print cloud" << endl;
+      visualization::ClearVisualizationMsg(*viz_msg_);
+      visualization::DrawPointCloud(scan, 0xFF00, *viz_msg_);
+      viz_pub_->publish(*viz_msg_);
+  }
   /*float p_weight = obs_likelihood.calculate_accumulated_loglikelihood(
       expected_ranges,
-      scan);*/
+      ranges);*/
   p_ptr->weight = 1;
 }
 
@@ -213,12 +235,42 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
-  /*  unsigned int n = pf_params_.radar_downsample_rate;
-     unsigned int downsample_truncated_pts = ((ranges.size()-1)%n);
-     int num_ranges = std::floor((ranges.size()-downsample_truncated_pts)/n)+1;
-     float angle_max_true = angle_min + (ranges.size()-downsample_truncated_pts)*angle_incr;
-
-    static*/
+  unsigned int n = pf_params_.radar_downsample_rate;
+  unsigned int num_ranges;
+  float angle_max_true;
+  if (n != 1) {
+      unsigned int downsample_truncated_pts = ((ranges.size()-1)%n);
+      //cout << "downsample_truncated_pts:" << downsample_truncated_pts;
+      num_ranges = std::floor((ranges.size()-downsample_truncated_pts)/n)+1;
+      angle_max_true = angle_min + (ranges.size()-downsample_truncated_pts-1)*angle_incr;
+  } else {
+      num_ranges = ranges.size();
+      angle_max_true = angle_min + (ranges.size()-1)*angle_incr;
+  }
+  static vector<float> downsampled_ranges;
+  downsampled_ranges.resize(num_ranges);
+  //cout << "LIDAR scan size:" << ranges.size() << endl;
+  unsigned int downsample_cnt = 0;
+  for (size_t i=0; i < ranges.size(); ++i) {
+        if (i%n == 0) {
+            downsampled_ranges[downsample_cnt] = ranges[i];
+            downsample_cnt++;
+        }
+  }
+  //cout << "test cnt:" << downsample_cnt << "downsampled_sizes:" << downsampled_ranges.size() << endl;
+  // OLEG TODO: sanity check remove later
+  if (downsample_cnt != num_ranges) {
+      throw "Internal Error.ParticleFilter::ObserveLaser: Error with num_ranges calculation found";
+  }
+  for (auto &p: particles_) {
+        Update(downsampled_ranges,
+               num_ranges,
+               range_min,
+               range_max,
+               angle_min,
+               angle_max_true,
+               &p);
+  }
 }
 
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
@@ -244,6 +296,8 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
     cout << "loading map...." << endl;
     map_.Load(map_file);
+    particles_.push_back(Particle(loc, angle, 0));
+    map_loaded_ = true;
 
 }
 
@@ -256,6 +310,12 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // variables to return them. Modify the following assignments:
   loc = Vector2f(0, 0);
   angle = 0;
+}
+
+void ParticleFilter::SetRosHandleAndInitPubs(ros::Publisher* pub,
+                                             amrl_msgs::VisualizationMsg* msg) {
+    viz_msg_ = msg;
+    viz_pub_ = pub;
 }
 
 
