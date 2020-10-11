@@ -29,10 +29,6 @@
 #include "xsimd/xsimd.hpp"
 
 
-using Eigen::Vector2f;
-using amrl_msgs::VisualizationMsg;
-
-
 namespace debug {
     template <typename T>
     void print_line(const geometry::Line<T>& line,std::string prefix = "") {
@@ -44,11 +40,12 @@ namespace debug {
 
 namespace visualization {
 
-    inline void DrawCar(float w, float l, uint32_t color, VisualizationMsg& msg) {
-        Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
-        Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
-        Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
-        Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
+    inline void DrawCar(float w, float l, uint32_t color,
+                        amrl_msgs::VisualizationMsg& msg) {
+        Eigen::Vector2f corner1{(l + CarDims::wheelbase) / 2.f, w / 2.f};
+        Eigen::Vector2f corner2{(l + CarDims::wheelbase) / 2.f, -w / 2.f};
+        Eigen::Vector2f corner3{-(l - CarDims::wheelbase) / 2.f, -w / 2.f};
+        Eigen::Vector2f corner4{-(l - CarDims::wheelbase) / 2.f, w / 2.f};
         visualization::DrawLine(corner1, corner2, color, msg);
         visualization::DrawLine(corner2, corner3, color, msg);
         visualization::DrawLine(corner3, corner4, color, msg);
@@ -56,8 +53,8 @@ namespace visualization {
 
     }
 
-    inline void DrawPointCloud(const std::vector<Vector2f>& p_cloud, uint32_t color,
-                               VisualizationMsg& msg ) {
+    inline void DrawPointCloud(const std::vector<Eigen::Vector2f>& p_cloud, uint32_t color,
+                                amrl_msgs::VisualizationMsg& msg ) {
         for (size_t i = 0; i < p_cloud.size(); ++i) {
             visualization::DrawPoint(p_cloud[i], color, msg);
         }
@@ -70,10 +67,10 @@ namespace navigation {
             explicit PoseSE2(): loc{0,0}, angle{0} {};
             explicit PoseSE2(float x,float y,float angle_init):
                     loc{x,y}, angle{angle_init} {};
-            explicit PoseSE2(Vector2f loc, float angle_init):
+            explicit PoseSE2(Eigen::Vector2f loc, float angle_init):
                     loc{loc}, angle{angle_init} {};
 
-            Vector2f loc;
+            Eigen::Vector2f loc;
             float angle;
 
             const PoseSE2 operator+(const PoseSE2& rhs) {
@@ -118,15 +115,15 @@ using navigation::PoseSE2;
 
 namespace collision {
 
-    inline bool is_point_in_circle(Vector2f circle_center, float radius, Vector2f point) {
+    inline bool is_point_in_circle(Eigen::Vector2f circle_center, float radius, Eigen::Vector2f point) {
         if ((circle_center-point).norm() <= radius) {
             return true;
         }
         return false;
     }
 
-    inline bool is_point_in_path(float r, float clearance, const Vector2f& point) {
-        Vector2f turning_center(0,r);
+    inline bool is_point_in_path(float r, float clearance, const Eigen::Vector2f& point) {
+        Eigen::Vector2f turning_center(0,r);
         float collision_ring_internal_r = r-CarDims::w/2-clearance;
         float collision_ring_external_r = r+CarDims::w/2+clearance;
         if (!is_point_in_circle(turning_center,collision_ring_internal_r,point) &&
@@ -147,7 +144,7 @@ namespace collision {
 
     }
 
-    inline float calc_distance_on_curve_to_point(float c, const Vector2f& point) {
+    inline float calc_distance_on_curve_to_point(float c, const Eigen::Vector2f& point) {
         if (fabs(c) < GenConsts::kEpsilon) {
            return point.norm();
         }
@@ -158,12 +155,12 @@ namespace collision {
 
     }
 
-    inline float check_collision_curvature_zero(std::vector<Vector2f> point_cloud) {
+    inline float check_collision_curvature_zero(std::vector<Eigen::Vector2f> point_cloud) {
         float upper_y_bound = CarDims::w/2 + CarDims::default_safety_margin;
         float lower_y_bound = -CarDims::w/2 - CarDims::default_safety_margin;
         float fpl = GenConsts::FPL_max_bound;
         for (size_t i = 0; i < point_cloud.size(); ++i) {
-            Vector2f curr_p = point_cloud[i];
+            Eigen::Vector2f curr_p = point_cloud[i];
             if (curr_p.y() < upper_y_bound && curr_p.y() > lower_y_bound) {
                 fpl = curr_p.x() - CarDims::wheelbase - CarDims::default_safety_margin;
             }
@@ -177,9 +174,9 @@ namespace tf {
                                          const PoseSE2& pose_loc_frame) {
         // frame delta is how ahead is the pose of loc frame base from the glob frame
         float new_frame_angle = frame_delta.angle + pose_loc_frame.angle;
-        Vector2f rotated_displacement =
+        Eigen::Vector2f rotated_displacement =
                 Eigen::Rotation2Df(frame_delta.angle) * pose_loc_frame.loc;
-        Vector2f new_frame_loc = rotated_displacement + frame_delta.loc;
+        Eigen::Vector2f new_frame_loc = rotated_displacement + frame_delta.loc;
         PoseSE2 new_frame_pose(new_frame_loc,new_frame_angle);
         return new_frame_pose;
     }
@@ -189,29 +186,29 @@ namespace tf {
                                         const PoseSE2& pose_glob_frame) {
         // frame delta is how ahead is the loc frame (of pose_curr_frame) from the glob frame
         float new_frame_angle = 0;
-        Vector2f rotated_displacement =
+        Eigen::Vector2f rotated_displacement =
             Eigen::Rotation2Df(-frame_delta.angle) * pose_glob_frame.loc;
-        Vector2f new_frame_loc =
-                rotated_displacement + Vector2f(-frame_delta.loc.norm(),0);
+        Eigen::Vector2f new_frame_loc =
+                rotated_displacement + Eigen::Vector2f(-frame_delta.loc.norm(),0);
         PoseSE2 new_frame_pose(new_frame_loc,new_frame_angle);
         return new_frame_pose;
     }
 
-    inline Vector2f transform_point_to_glob_frame(const PoseSE2& frame_delta,
-                                           const Vector2f& point_loc_frame) {
+    inline Eigen::Vector2f transform_point_to_glob_frame(const PoseSE2& frame_delta,
+                                           const Eigen::Vector2f& point_loc_frame) {
         // frame_delta is the cooridnates of the loc frame base in the global frame
-        Vector2f rotated_displacement = Eigen::Rotation2Df(frame_delta.angle) * point_loc_frame;
-        Vector2f new_frame_loc = rotated_displacement + frame_delta.loc;
+        Eigen::Vector2f rotated_displacement = Eigen::Rotation2Df(frame_delta.angle) * point_loc_frame;
+        Eigen::Vector2f new_frame_loc = rotated_displacement + frame_delta.loc;
         return new_frame_loc;
     }
 
-    inline Vector2f transform_point_to_loc_frame(const PoseSE2& frame_delta,
-                                          const Vector2f& point_glob_frame) {
+    inline Eigen::Vector2f transform_point_to_loc_frame(const PoseSE2& frame_delta,
+                                          const Eigen::Vector2f& point_glob_frame) {
            // frame_delta is the cooridnates of the loc frame base in the global frame
-        Vector2f rotated_displacement =
+        Eigen::Vector2f rotated_displacement =
             Eigen::Rotation2Df(-frame_delta.angle) * point_glob_frame;
-        Vector2f new_frame_loc =
-            rotated_displacement + Vector2f(-frame_delta.loc.norm(),0);
+        Eigen::Vector2f new_frame_loc =
+            rotated_displacement + Eigen::Vector2f(-frame_delta.loc.norm(),0);
         return new_frame_loc;
     }
 
@@ -229,8 +226,8 @@ namespace tf {
     }
 
     inline void proj_lidar_2_pts(const sensor_msgs::LaserScan& msg,
-                                 std::vector<Vector2f>& point_cloud,
-                                 const Vector2f& kLaserLoc,
+                                 std::vector<Eigen::Vector2f>& point_cloud,
+                                 const Eigen::Vector2f& kLaserLoc,
                                  bool filter_max_range=false) {
       point_cloud.clear();
       float curr_laser_angle = msg.angle_min;
@@ -241,7 +238,7 @@ namespace tf {
               curr_range <= (msg.range_max-PhysicsConsts::radar_noise_std)) {
             float x = cos(curr_laser_angle)*curr_range;
             float y = sin(curr_laser_angle)*curr_range;
-            Vector2f baselink_loc(Vector2f(x,y) + kLaserLoc);
+            Eigen::Vector2f baselink_loc(Eigen::Vector2f(x,y) + kLaserLoc);
             point_cloud.push_back(baselink_loc);
           }
         }
@@ -269,8 +266,8 @@ namespace geometry {
        }
 
        // Calculate intersection points between circle and segment's line.
-       Vector2f intersect_point_1;
-       Vector2f intersect_point_2;
+       Eigen::Matrix<T,2,1> intersect_point_1;
+       Eigen::Matrix<T,2,1> intersect_point_2;
        unsigned int num_intersections;
        if (fabs(segment.p1.x()-segment.p0.x()) < GenConsts::kEpsilon) {
            /*
@@ -319,7 +316,7 @@ namespace geometry {
       }
        Line<T> part_in_circle;
        if (num_intersections < 2) {
-           part_in_circle.Set(Vector2f(0,0),Vector2f(0,0));
+           part_in_circle.Set(Eigen::Matrix<T,2,1>(0,0),Eigen::Matrix<T,2,1>(0,0));
        } else {
            if (!is_point_in_circle(center, radius, segment.p0) &&
                !is_point_in_circle(center, radius, segment.p1)) {
@@ -331,10 +328,10 @@ namespace geometry {
                                 GenConsts::kEpsilon)) {
                    part_in_circle.Set(intersect_point_1, intersect_point_2);
                } else {
-                   part_in_circle.Set(Vector2f(0,0),Vector2f(0,0));
+                   part_in_circle.Set(Eigen::Matrix<T,2,1>(0,0),Eigen::Matrix<T,2,1>(0,0));
                }
            } else {
-               Vector2f inside_point;
+               Eigen::Matrix<T,2,1> inside_point;
                if (is_point_in_circle(center, radius, segment.p0)) {
                    inside_point = segment.p0;
                } else {
