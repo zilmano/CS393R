@@ -84,40 +84,11 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   const Vector2f kLaserLoc(0.2, 0);
   static vector<Vector2f> point_cloud_;
 
-  // TODO Convert the LaserScan to a point cloud
-  //Oleg: Old implementation using laster_projector. Joydeep said not cool.
-  /*
-	// Convert the LaserScan to a point cloud
-	sensor_msgs::PointCloud pc_msg;
-	laser_projector_.projectLaser(msg, pc_msg);
-	// Oleg: Why the Funck is it static??
-	static vector<Vector2f> point_cloud_;
-	point_cloud_.clear();
-
-	for (size_t i = 0; i < pc_msg.points.size(); ++i) {
-		Vector2f new_point(pc_msg.points[i].x,pc_msg.points[i].y);
-		point_cloud_.push_back(new_point);
-	}
-   */
-
   // OLEG TODO: techincally, to make it work faster, don't clear it, when size==0, init with laser results size 
   // with some overhead, otherwise just go by indexes and set new value, if point_cloud_ size is bigger then 
   // msg.ranges.size() set all the remaining vector indexes to zero.
-  point_cloud_.clear();
 
-  float curr_laser_angle = msg.angle_min;
-  for (size_t i = 0; i < msg.ranges.size(); ++i) {
-	float curr_range = msg.ranges[i];
-	if (curr_range >= msg.range_min && curr_range <= msg.range_max) {
-      float x = cos(curr_laser_angle)*curr_range;
-      float y = sin(curr_laser_angle)*curr_range;
-      Vector2f baselink_loc(Vector2f(x,y) + kLaserLoc);
-      point_cloud_.push_back(baselink_loc);
-    }
-
-	curr_laser_angle += msg.angle_increment;
-  }
-
+  tf::proj_lidar_2_pts(msg, point_cloud_, kLaserLoc);
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
 
