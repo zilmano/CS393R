@@ -87,8 +87,8 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             vector<Vector2f>* scan_points_ptr,
                                             vector<float>* scan_ranges_ptr) {
 
-  //if (!map_loaded_)
-  //    return;
+  if (!map_loaded_)
+    return;
 
   cout << "GetPredictedPointCloud" << endl;
   vector<Vector2f>& scan_points = *scan_points_ptr;
@@ -162,7 +162,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
           }
       }
       scan_points[range_index] = closest_intersection;
-      scan_ranges[dist_to_closest];
+      scan_ranges[range_index] = dist_to_closest;
       beam_angle += angle_incr;
   }
 
@@ -192,19 +192,16 @@ void ParticleFilter::Update(const vector<float>& ranges,
       throw "Internal error. ParticleFilter::Update: scan size not equal expected_ranges size.";
 
 
-  /*for (const auto &p : scan) {
-        cout << p.x()<< "," << p.y() << " ";
-  }*/
   //cout << endl << "scan size:" << scan.size() << " " << expected_ranges.size() << endl;
   if (viz_pub_) {
-      //cout << "print cloud" << endl;
-      visualization::ClearVisualizationMsg(*viz_msg_);
+      cout << "print cloud.." << endl;
       visualization::DrawPointCloud(scan, 0xFF00, *viz_msg_);
       viz_pub_->publish(*viz_msg_);
   }
   /*float p_weight = obs_likelihood.calculate_accumulated_loglikelihood(
       expected_ranges,
-      ranges);*/
+      const_cast<vector<float>&>(ranges));
+  p_ptr->weight = p_weight;*/
   p_ptr->weight = 1;
 }
 
@@ -284,7 +281,12 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   if (downsample_cnt != num_ranges) {
       throw "Internal Error.ParticleFilter::ObserveLaser: Error with num_ranges calculation found";
   }
+  //cout << endl << endl << "---------" << endl << "ObserveLaser::" << endl;
+  /*if (viz_pub_)
+      visualization::ClearVisualizationMsg(*viz_msg_);*/
+
   for (auto &p: particles_) {
+        //debug::print_loc(p.loc, "Particle loc");
         Update(downsampled_ranges,
                num_ranges,
                range_min,
@@ -292,6 +294,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_min,
                angle_max_true,
                &p);
+        //cout << "  Weight: " << p.weight << endl;
   }
 }
 
@@ -318,7 +321,11 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
     cout << "loading map...." << endl;
     map_.Load(map_file);
-    particles_.push_back(Particle(loc, angle, 0));
+    particles_.clear();
+
+    //particles_.push_back(Particle(loc, angle, 0));
+    UniformParticleInit();
+
     map_loaded_ = true;
 
 }
@@ -332,6 +339,17 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // variables to return them. Modify the following assignments:
   loc = Vector2f(0, 0);
   angle = 0;
+}
+
+void ParticleFilter::UniformParticleInit() {
+    for (unsigned int i = 0; i < pf_params_.num_particles; ++i) {
+        float x = (rng_.UniformRandom(0,1)-0.5)*42;
+        float y = (rng_.UniformRandom(0,1)-0.5)*32;
+        float angle = (rng_.UniformRandom(0,1)-0.5)*M_PI;
+        particles_.push_back(Particle(Vector2f(x,y), angle, 0));
+    }
+
+
 }
 
 void ParticleFilter::SetRosHandleAndInitPubs(ros::Publisher* pub,
