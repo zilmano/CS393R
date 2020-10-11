@@ -327,6 +327,7 @@ int main(int argc, char** argv) {
 
   particle_filter::PfParams params;
   params.radar_downsample_rate = 10;
+  params.num_particles = 50;
   particle_filter_.SetParams(params);
   particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
 

@@ -134,6 +134,9 @@ class ParticleFilter {
   }
 
  private:
+      // Oleg: Naive particle init. Please improve/add gaussian or others.
+      void UniformParticleInit();
+ private:
 
   // List of particles being tracked.
   std::vector<Particle> particles_;
