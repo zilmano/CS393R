@@ -128,7 +128,8 @@ void PublishPredictedScan() {
   Vector2f robot_loc(0, 0);
   float robot_angle(0);
   particle_filter_.GetLocation(&robot_loc, &robot_angle);
-  vector<Vector2f> predicted_scan;
+  static vector<Vector2f> predicted_scan;
+  static vector<float> predicted_ranges;
   particle_filter_.GetPredictedPointCloud(
       robot_loc,
       robot_angle,
@@ -137,7 +138,8 @@ void PublishPredictedScan() {
       last_laser_msg_.range_max,
       last_laser_msg_.angle_min,
       last_laser_msg_.angle_max,
-      &predicted_scan);
+      &predicted_scan,
+      &predicted_ranges);
   for (const Vector2f& p : predicted_scan) {
     DrawPoint(p, kColor, vis_msg_);
   }
@@ -194,7 +196,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
       msg.angle_min,
       msg.angle_max,
       msg.angle_increment);
-  //PublishVisualization();
+  PublishVisualization();
 }
 
 void OdometryCallback(const nav_msgs::Odometry& msg) {
@@ -213,7 +215,7 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   localization_msg.pose.y = robot_loc.y();
   localization_msg.pose.theta = robot_angle;
   localization_publisher_.publish(localization_msg);
-  //PublishVisualization();
+  PublishVisualization();
 }
 
 void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
@@ -261,18 +263,19 @@ void debug_get_predicted_pt_cld() {
 
 
   static vector<Vector2f> scan;
+  static vector<float> exp_ranges;
   //Vector2f loc(-7.93723344803,7.96144914627);
   //Vector2f loc(15.1750001907, 8.67500019073);
   particle_filter_.GetPredictedPointCloud(dbg_init_loc_, dbg_init_angle_,1000,0.2,10.0,
                                          -2.35619449615,
                                           2.35619449615,
-                                          &scan);
+                                          &scan, &exp_ranges);
   cout << "scan size:" << scan.size() << endl;
   /*for (const auto &p : scan) {
       cout << p.x()<< "," << p.y() << " ";
   }*/
   cout << endl;
-  ClearVisualizationMsg(vis_msg_);
+  visualization::ClearVisualizationMsg(vis_msg_);
   visualization::DrawPointCloud(scan, 0xFF00, vis_msg_);
   visualization_publisher_.publish(vis_msg_);
 }
@@ -290,17 +293,10 @@ void ProcessLive(ros::NodeHandle* n) {
       FLAGS_odom_topic.c_str(),
       1,
       OdometryCallback);
-  //debug_get_sub_seg_in_circ();
   while (ros::ok() && run_) {
     ros::spinOnce();
-
-    debug_get_predicted_pt_cld();
-    //PublishVisualization();
+    PublishVisualization();
     Sleep(0.01);
-
-    /*if (i == 5)
-        break;
-    i += 1;*/
   }
 }
 
@@ -328,6 +324,11 @@ int main(int argc, char** argv) {
       n.advertise<amrl_msgs::Localization2DMsg>("localization", 1);
   laser_publisher_ =
       n.advertise<sensor_msgs::LaserScan>("scan", 1);
+
+  particle_filter::PfParams params;
+  params.radar_downsample_rate = 10;
+  particle_filter_.SetParams(params);
+  particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
 
   ProcessLive(&n);
 
