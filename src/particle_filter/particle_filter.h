@@ -27,6 +27,7 @@
 #include "shared/math/line2d.h"
 #include "shared/util/random.h"
 #include "vector_map/vector_map.h"
+#include "amrl_msgs/VisualizationMsg.h"
 //#include "glog/logging.h"
 
 #include "observation_model.h"
@@ -34,9 +35,19 @@
 #ifndef SRC_PARTICLE_FILTER_H_
 #define SRC_PARTICLE_FILTER_H_
 
+// Forward Declarations
+namespace ros {
+   class Publisher;
+}
+
 namespace particle_filter {
 
 struct Particle {
+  Particle(): loc(0),angle(0),weight(0) {};
+  explicit Particle(Eigen::Vector2f init_loc, float init_angle, double init_weight):
+                    loc(init_loc),
+                    angle(init_angle),
+                    weight(init_weight) {};
   Eigen::Vector2f loc;
   float angle;
   double weight;
@@ -44,7 +55,7 @@ struct Particle {
 
 struct PfParams {
     explicit PfParams(): radar_downsample_rate(1),d_long(0),d_short(0),
-                         k_1(1), k_2(1), sigma_obs(1), gamma(1) {}
+                         k_1(1), k_2(1), sigma_obs(1), gamma(1), num_particles(50) {}
     unsigned int radar_downsample_rate;
     float d_long;
     float d_short;
@@ -52,6 +63,7 @@ struct PfParams {
     float k_2;
     float sigma_obs;
     float gamma;
+    unsigned int num_particles;
 };
 
 class ParticleFilter {
@@ -84,11 +96,11 @@ class ParticleFilter {
 
   // Update particle weight based on laser.
   void Update(const std::vector<float>& ranges,
+              unsigned int num_ranges,
               float range_min,
               float range_max,
               float angle_min,
               float angle_max,
-              float angle_incr,
               Particle* p);
 
   // Resample particles.
@@ -102,13 +114,23 @@ class ParticleFilter {
                               float range_max,
                               float angle_min,
                               float angle_max,
-                              std::vector<Eigen::Vector2f>* scan);
-  // Our added public members
+                              std::vector<Eigen::Vector2f>* scan_points,
+                              std::vector<float>* scan_ranges);
+  /*
+   * Our added public members
+   */
   void SetParams(const PfParams& params) {
       pf_params_ = params;
       obs_likelihood.setGamma(pf_params_.gamma);
       obs_likelihood.setSigma(pf_params_.sigma_obs);
 
+  }
+
+  void SetRosHandleAndInitPubs(ros::Publisher* pub,
+                               amrl_msgs::VisualizationMsg* msg);
+
+  bool isInited() {
+      return map_loaded_;
   }
 
  private:
@@ -128,10 +150,9 @@ class ParticleFilter {
   bool odom_initialized_;
 
   // Our members
-  PfParams pf_params_;
-
   ObservationModel obs_likelihood;
-
+  PfParams pf_params_;
+  bool map_loaded_;
 
 
 
