@@ -121,9 +121,13 @@ class ParticleFilter {
    */
   void SetParams(const PfParams& params) {
       pf_params_ = params;
-      obs_likelihood.setGamma(pf_params_.gamma);
-      obs_likelihood.setSigma(pf_params_.sigma_obs);
+      obs_likelihood_.setGamma(pf_params_.gamma);
+      obs_likelihood_.setSigma(pf_params_.sigma_obs);
+      //particles_.resize(pf_params_.num_particles);
+      weights_.resize(pf_params_.num_particles, 1);
+      UniformParticleInit();
 
+      // OLEG TODO: set other params as they come
   }
 
   void SetRosHandleAndInitPubs(ros::Publisher* pub,
@@ -142,7 +146,7 @@ class ParticleFilter {
   std::vector<Particle> particles_;
 
   // List of new weights for each particle.
-  std::vector<float> weights_;
+  Eigen::VectorXd weights_;
 
   // Map of the environment.
   vector_map::VectorMap map_;
@@ -156,12 +160,9 @@ class ParticleFilter {
   bool odom_initialized_;
 
   // Our members
-  ObservationModel obs_likelihood;
+  ObservationModel obs_likelihood_;
   PfParams pf_params_;
   bool map_loaded_;
-
-
-
 
 };
 }  // namespace slam

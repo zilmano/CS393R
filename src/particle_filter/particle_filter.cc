@@ -70,8 +70,10 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    obs_likelihood(1,PhysicsConsts::radar_noise_std),
-    map_loaded_(false) {}
+    obs_likelihood_(1,PhysicsConsts::radar_noise_std),
+    map_loaded_(false) {
+    SetParams(pf_params_);
+}
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
   *particles = particles_;
@@ -87,22 +89,23 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
                                             vector<Vector2f>* scan_points_ptr,
                                             vector<float>* scan_ranges_ptr) {
 
-  if (!map_loaded_)
-    return;
+   // Compute what the predicted point cloud would be, if the car was at the pose
+   // loc, angle, with the sensor characteristics defined by the provided
+   // parameters.
+   // This is NOT the motion model predict step: it is the prediction of the
+   // expected observations, to be used for the update step.
 
-  cout << "GetPredictedPointCloud" << endl;
+
+   //if (!map_loaded_)
+    //return;
+
+  //cout << "GetPredictedPointCloud" << endl;
   vector<Vector2f>& scan_points = *scan_points_ptr;
   vector<float>& scan_ranges = *scan_ranges_ptr;
-  // Compute what the predicted point cloud would be, if the car was at the pose
-  // loc, angle, with the sensor characteristics defined by the provided
-  // parameters.
-  // This is NOT the motion model predict step: it is the prediction of the
-  // expected observations, to be used for the update step.
 
   // Note: The returned values must be set using the `scan` variable:
   scan_points.resize(num_ranges);
   scan_ranges.resize(num_ranges);
-  // Fill in the entries of scan using array writes, e.g. scan[i] = ...
   for (size_t i = 0; i < scan_ranges.size(); ++i) {
     scan_points[i] = Vector2f(0, 0);
     scan_ranges[i] = 0;
@@ -112,7 +115,6 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
   vector<Line<float>> lines_in_range;
   //cout << "map line num: " << map_.lines.size() << endl;
   for (size_t i = 0; i < map_.lines.size(); ++i) {
-
         Line<float>  segment_in_radar_range = geometry::get_sub_segment_in_circle(
                                                                 map_.lines[i],
                                                                 loc, range_max);
@@ -125,7 +127,7 @@ void ParticleFilter::GetPredictedPointCloud(const Vector2f& loc,
 
             lines_in_range.push_back(segment_in_radar_range);
         }
-    }
+  }
 
   //std::cout << "segments in range" << lines_in_range.size() << std::endl;
   float angle_incr = (angle_max - angle_min)/num_ranges;
@@ -194,15 +196,15 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
   //cout << endl << "scan size:" << scan.size() << " " << expected_ranges.size() << endl;
   if (viz_pub_) {
-      cout << "print cloud.." << endl;
+      //cout << "print cloud.." << endl;
       visualization::DrawPointCloud(scan, 0xFF00, *viz_msg_);
       viz_pub_->publish(*viz_msg_);
   }
-  /*float p_weight = obs_likelihood.calculate_accumulated_loglikelihood(
+  /*float p_weight = obs_likelihood_.calculate_accumulated_loglikelihood(
       expected_ranges,
       const_cast<vector<float>&>(ranges));
   p_ptr->weight = p_weight;*/
-  p_ptr->weight = 1;
+  p_ptr->weight = 1.0;
 }
 
 void ParticleFilter::Resample() {
@@ -210,28 +212,51 @@ void ParticleFilter::Resample() {
   // The current particles are in the `particles_` variable. 
   // Create a variable to store the new particles, and when done, replace the
   // old set of particles:
-  vector<Particle> new_particles;
-  vector<Eigen::Vector2f> number_line;
-  number_line.resize(weights_.size());
-  number_line[0] = Vector2f(0,weights_[0]);
+  //cout << endl << endl << "Resample::" << endl;
+  if (weights_.rows() <= 0) {
+      cout << "Internal Error. Cannot resample without num_particles=0." << endl;
+      throw "Internal Error. Cannot resample without num_particles=0. Please make sure ParticleFilter has pf_params_.num_particles>0";
+  }
 
+  if (pf_params_.num_particles != weights_.rows() || (unsigned int)weights_.rows() != particles_.size()) {
+      cout <<"internal Error. There is a mismatch between the sizes of particles_ a" << endl;
+      throw "Internal Error. There is a mismatch between the sizes of particles_ and weights_ in ParticleFilter. There is a bug in resizing somewhere.";
+  }
+
+  //OLEG TODO: Sanitiy check, remove.
+  if ((weights_.sum() - 1.0) > GenConsts::kEpsilon) {
+      cout << "Normalized particle weights do not sum to 1" << endl;
+      throw "Internal Error. Normalized particle weights do not sum to 1";
+  }
+
+  static vector<Particle> new_particles;
+  static Eigen::VectorXd new_weights;
+  new_particles.resize(pf_params_.num_particles);
+  new_weights.resize(pf_params_.num_particles, 1);
+
+  static vector<Eigen::Vector2f> number_line;
+  number_line.resize(weights_.rows());
+  number_line[0] = Vector2f(0,weights_(0));
   for (size_t i = 1; i < number_line.size(); i++){
     float lower = number_line[i-1].y();
-    float upper = number_line[i-1].y() + weights_[i];
+    float upper = number_line[i-1].y() + weights_(i);
     number_line[i] = Vector2f(lower,upper);
   }
 
   for(size_t i = 0; i < particles_.size(); i++){
     float x = rng_.UniformRandom(0,1);
     for(size_t j = 0; j < number_line.size(); j++){
-      if((x > number_line[i].x()) and (x <= number_line[i].y())){
-        new_particles.push_back(particles_[j]);
+      if((x > number_line[j].x()) and (x <= number_line[j].y())){
+        new_particles[i] = particles_[j];
+        new_weights[i] = weights_(j);
         break;
       }
     }
   }
 
+  // OLEG: Use pointers later to avoid copy contructors?
   particles_ = new_particles;
+  weights_ =  new_weights;
 
   // During resampling: 
   //    new_particles.push_back(...)
@@ -254,6 +279,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
+  //cout << "Observe Laser" << endl;
   unsigned int n = pf_params_.radar_downsample_rate;
   unsigned int num_ranges;
   float angle_max_true;
@@ -285,6 +311,12 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   /*if (viz_pub_)
       visualization::ClearVisualizationMsg(*viz_msg_);*/
 
+  if (weights_.rows() != pf_params_.num_particles) {
+      cout << "weights_ vector size is smelly." << endl;
+      throw "Internal Error. weights_ vector size is smelly.";
+  }
+  unsigned int index = 0;
+  double total_weight = 0;
   for (auto &p: particles_) {
         //debug::print_loc(p.loc, "Particle loc");
         Update(downsampled_ranges,
@@ -294,8 +326,17 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_min,
                angle_max_true,
                &p);
+        weights_(index) = p.weight;
+        total_weight += p.weight;
+        index++;
         //cout << "  Weight: " << p.weight << endl;
   }
+
+  // OLEG TODO: next line is for testing - remove.
+  weights_ /= (total_weight);
+
+  Resample();
+
 }
 
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
@@ -321,9 +362,8 @@ void ParticleFilter::Initialize(const string& map_file,
   // some distribution around the provided location and angle.
     cout << "loading map...." << endl;
     map_.Load(map_file);
-    particles_.clear();
 
-    //particles_.push_back(Particle(loc, angle, 0));
+    particles_.clear();
     UniformParticleInit();
 
     map_loaded_ = true;
@@ -342,14 +382,13 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
 }
 
 void ParticleFilter::UniformParticleInit() {
+    particles_.clear();
     for (unsigned int i = 0; i < pf_params_.num_particles; ++i) {
         float x = (rng_.UniformRandom(0,1)-0.5)*42;
         float y = (rng_.UniformRandom(0,1)-0.5)*32;
         float angle = (rng_.UniformRandom(0,1)-0.5)*M_PI;
         particles_.push_back(Particle(Vector2f(x,y), angle, 0));
     }
-
-
 }
 
 void ParticleFilter::SetRosHandleAndInitPubs(ros::Publisher* pub,
