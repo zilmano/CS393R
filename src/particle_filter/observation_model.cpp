@@ -9,15 +9,28 @@
 #include "xtensor/xio.hpp"
 #include <iostream>
 
-ObservationModel::ObservationModel(float gamma, float sigma) : gamma_(gamma), sigma_(sigma) {}
+ObservationModel::ObservationModel(float gamma, float sigma, float d_long, float d_short) : gamma_(gamma), sigma_(sigma), d_long_(d_long), d_short_(d_short) {}
 
-float ObservationModel::calculate_accumulated_loglikelihood(simd_vec_type &intersections, simd_vec_type &observations) {
+float ObservationModel::calculate_accumulated_loglikelihood(simd_vec_type &intersections, simd_vec_type &observations, float range_min, float range_max) {
     simd_vec_type log_likelihood;
     log_likelihood.resize(intersections.size());
-    xsimd::transform(intersections.begin(), intersections.end(), observations.begin(),
+    std::transform(intersections.begin(), intersections.end(), observations.begin(),
                      log_likelihood.begin(),
                      [&](const auto &intersect, const auto & observ){
-        auto div = (intersect - observ) / sigma_;
+        float div = 0;
+        if((observ > range_max) or (observ < range_min)){
+            div = 0;
+        }
+        else if(observ < (intersect - d_short_)){
+            div = d_short_ / sigma_;
+        }
+        else if(observ > (intersect + d_long_)){
+            div = d_long_ / sigma_;
+        }
+        else{
+            div = (intersect - observ) / sigma_;
+        }
+        
         return div * div;
     });
     //std::cout << "Weight vector:" << std::endl;
