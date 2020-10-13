@@ -8,7 +8,7 @@
 #include <vector>
 #include "xsimd/xsimd.hpp"
 
-using simd_vec_type = std::vector<float, xsimd::aligned_allocator<float, XSIMD_DEFAULT_ALIGNMENT>>;
+using simd_vec_type = std::vector<float>;
 
 
 #endif //REPO_COMMON_DEF_H
