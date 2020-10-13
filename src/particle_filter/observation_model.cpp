@@ -20,7 +20,8 @@ float ObservationModel::calculate_accumulated_loglikelihood(simd_vec_type &inter
         auto div = (intersect - observ) / sigma_;
         return div * div;
     });
-    std::cout << std::endl << xt::adapt(log_likelihood) << std::endl;
+    //std::cout << "Weight vector:" << std::endl;
+    //std::cout << std::endl << xt::adapt(log_likelihood) << std::endl;
     float acc = xt::sum(xt::adapt(log_likelihood))[0];
     return acc * -gamma_;
 }
