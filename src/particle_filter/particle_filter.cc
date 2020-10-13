@@ -71,8 +71,9 @@ ParticleFilter::ParticleFilter() :
     prev_odom_angle_(0),
     odom_initialized_(false),
     obs_likelihood_(1,PhysicsConsts::radar_noise_std),
-    map_loaded_(false) {
-    SetParams(pf_params_);
+    map_loaded_(false),
+    laser_obs_counter_(0) {
+  SetParams(pf_params_);
 }
 
 void ParticleFilter::GetParticles(vector<Particle>* particles) const {
@@ -195,16 +196,16 @@ void ParticleFilter::Update(const vector<float>& ranges,
 
 
   //cout << endl << "scan size:" << scan.size() << " " << expected_ranges.size() << endl;
-  if (viz_pub_) {
+  /*if (viz_pub_) {
       //cout << "print cloud.." << endl;
       visualization::DrawPointCloud(scan, 0xFF00, *viz_msg_);
       viz_pub_->publish(*viz_msg_);
-  }
-  /*float p_weight = obs_likelihood_.calculate_accumulated_loglikelihood(
+  }*/
+  float p_weight = obs_likelihood_.calculate_accumulated_loglikelihood(
       expected_ranges,
       const_cast<vector<float>&>(ranges));
-  p_ptr->weight = p_weight;*/
-  p_ptr->weight = 1.0;
+  p_ptr->weight = p_weight;
+  //p_ptr->weight = 1.0;
 }
 
 void ParticleFilter::Resample() {
@@ -280,6 +281,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   // A new laser scan observation is available (in the laser frame)
   // Call the Update and Resample steps as necessary.
   //cout << "Observe Laser" << endl;
+
   unsigned int n = pf_params_.radar_downsample_rate;
   unsigned int num_ranges;
   float angle_max_true;
@@ -326,17 +328,25 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_min,
                angle_max_true,
                &p);
-        weights_(index) = p.weight;
-        total_weight += p.weight;
+        weights_(index) *= 1/p.weight;
+        total_weight += weights_(index);
         index++;
         //cout << "  Weight: " << p.weight << endl;
   }
 
   // OLEG TODO: next line is for testing - remove.
   weights_ /= (total_weight);
-
-  Resample();
-
+  if ((laser_obs_counter_ % pf_params_.resample_n_step) == 0 ) {
+      Resample();
+      for (size_t i = 0; i < pf_params_.num_particles; ++i) {
+          /*  OLEG TODO: this will work if we determine the location
+           *  with a weighted average of particles, not if we try to pick
+           *  the most probable one. We can do further modif to enable that.
+           */
+          weights_(i) = 1;
+      }
+  }
+  laser_obs_counter_++;
 }
 
 void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
@@ -345,13 +355,47 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
   // Implement the motion model predict step here, to propagate the particles
   // forward based on odometry.
 
+  if (!odom_initialized_) {
+      prev_odom_loc_ = odom_loc;
+      prev_odom_angle_ = odom_angle;
+      odom_initialized_ = true;
+  }
+  cout << "odom loc: " << odom_loc.x() << "," << odom_loc.y() << " angle: " << odom_angle << endl;
+  cout << "prev_odom loc: " << prev_odom_loc_.x() << "," << prev_odom_loc_.y() << " angle: " << prev_odom_angle_ << endl;
+
+  float d_angle = odom_angle-prev_odom_angle_;
+  Vector2f d_loc = odom_loc-prev_odom_loc_;
+  //cout << "d_loc: " << d_loc.x() << "," << d_loc.y() << " angle: " << d_angle << endl;
+  PoseSE2 d_pose_base = tf::transform_pose_to_glob_frame(
+          PoseSE2(Vector2f(0,0),-prev_odom_angle_),
+          PoseSE2(d_loc,odom_angle));
+
+  //cout << "d_pose: loc " << d_pose_loc.loc.x() << "," << d_pose_loc.loc.y() << " theta " <<
+  //        d_pose_loc.angle << endl;
+  for (auto &p : particles_) {
+      float noise_x =   rng_.Gaussian(0, pf_params_.k_1*d_loc.norm()+pf_params_.k_2*fabs(d_angle));
+      float noise_y =   rng_.Gaussian(0, pf_params_.k_1*d_loc.norm()+pf_params_.k_2*fabs(d_angle));
+      float noise_angle = rng_.Gaussian(0, pf_params_.k_3*d_loc.norm()+pf_params_.k_4*fabs(d_angle));
+      cout << "   particle_pose: loc " << p.loc.x() << "," << p.loc.y()<< " theta " <<
+                p.angle << endl;
+      PoseSE2 noisy_d_pose_loc(d_pose_base.loc + Vector2f(noise_x,noise_y),
+                               d_pose_base.angle + noise_angle);
+      PoseSE2 next_pose = tf::transform_pose_to_glob_frame(PoseSE2(p.loc,p.angle),noisy_d_pose_loc);
+      p.loc = next_pose.loc;
+      p.angle = next_pose.angle;
+      cout << "   particle new pose: loc " << p.loc.x() << "," << p.loc.y()<< " theta " <<
+                     p.angle << endl;
+
+  }
+  prev_odom_angle_ = odom_angle;
+  prev_odom_loc_ = odom_loc;
 
   // You will need to use the Gaussian random number generator provided. For
   // example, to generate a random number from a Gaussian with mean 0, and
   // standard deviation 2:
-  float x = rng_.Gaussian(0.0, 2.0);
-  printf("Random number drawn from Gaussian distribution with 0 mean and "
-         "standard deviation of 2 : %f\n", x);
+  //float x = rng_.Gaussian(0.0, 2.0);
+  //printf("Random number drawn from Gaussian distribution with 0 mean and "
+  //       "standard deviation of 2 : %f\n", x);
 }
 
 void ParticleFilter::Initialize(const string& map_file,
@@ -363,9 +407,10 @@ void ParticleFilter::Initialize(const string& map_file,
     cout << "loading map...." << endl;
     map_.Load(map_file);
 
-    particles_.clear();
-    UniformParticleInit();
+    odom_initialized_ = false;
 
+    //UniformParticleInit();
+    GaussianParticleInit(loc);
     map_loaded_ = true;
 
 }
@@ -386,6 +431,16 @@ void ParticleFilter::UniformParticleInit() {
     for (unsigned int i = 0; i < pf_params_.num_particles; ++i) {
         float x = (rng_.UniformRandom(0,1)-0.5)*42;
         float y = (rng_.UniformRandom(0,1)-0.5)*32;
+        float angle = (rng_.UniformRandom(0,1)-0.5)*M_PI;
+        particles_.push_back(Particle(Vector2f(x,y), angle, 0));
+    }
+}
+
+void ParticleFilter::GaussianParticleInit(const Vector2f& loc) {
+    particles_.clear();
+    for (unsigned int i = 0; i < pf_params_.num_particles; ++i) {
+        float x = rng_.Gaussian(loc.x(),pf_params_.particle_init_sigma);
+        float y = rng_.Gaussian(loc.y(),pf_params_.particle_init_sigma);
         float angle = (rng_.UniformRandom(0,1)-0.5)*M_PI;
         particles_.push_back(Particle(Vector2f(x,y), angle, 0));
     }

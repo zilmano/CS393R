@@ -54,13 +54,20 @@ struct Particle {
 };
 
 struct PfParams {
-    explicit PfParams(): radar_downsample_rate(1),d_long(0),d_short(0),
-                         k_1(1), k_2(1), sigma_obs(1), gamma(1), num_particles(50) {}
+    explicit PfParams(): radar_downsample_rate(1), resample_n_step(10),
+                         particle_init_sigma(1),
+                         d_long(0),d_short(0),
+                         k_1(1), k_2(1), k_3(0.3), k_4(1), sigma_obs(1), gamma(1),
+                         num_particles(50) {}
     unsigned int radar_downsample_rate;
+    unsigned int resample_n_step;
+    float particle_init_sigma;
     float d_long;
     float d_short;
     float k_1;
     float k_2;
+    float k_3;
+    float k_4;
     float sigma_obs;
     float gamma;
     unsigned int num_particles;
@@ -137,9 +144,16 @@ class ParticleFilter {
       return map_loaded_;
   }
 
+  /*
+   * Our added private members
+   */
  private:
-      // Oleg: Naive particle init. Please improve/add gaussian or others.
+     /* Oleg: Some particles inits. Please improve/add gaussian or others.
+       *       Specificaly, it would be nice to have one for a "kidnapped robot".
+       */
       void UniformParticleInit();
+      void GaussianParticleInit(const Eigen::Vector2f& loc);
+
  private:
 
   // List of particles being tracked.
@@ -159,12 +173,14 @@ class ParticleFilter {
   float prev_odom_angle_;
   bool odom_initialized_;
 
-  // Our members
+  // Our added members
   ObservationModel obs_likelihood_;
   PfParams pf_params_;
   bool map_loaded_;
+  unsigned int laser_obs_counter_;
+
 
 };
-}  // namespace slam
+}  // namespace particle filter
 
 #endif   // SRC_PARTICLE_FILTER_H_
