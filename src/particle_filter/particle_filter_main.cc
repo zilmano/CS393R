@@ -43,7 +43,6 @@
 #include "ros/package.h"
 
 #include "config_reader/config_reader.h"
-#include "glog/logging.h"
 #include "shared/math/math_util.h"
 #include "shared/math/line2d.h"
 #include "shared/util/timer.h"
@@ -179,7 +178,7 @@ void PublishVisualization() {
   ClearVisualizationMsg(vis_msg_);
 
   PublishParticles();
-  PublishPredictedScan();
+  //PublishPredictedScan();
   PublishTrajectory();
   visualization_publisher_.publish(vis_msg_);
 }
@@ -328,6 +327,7 @@ int main(int argc, char** argv) {
   particle_filter::PfParams params;
   params.radar_downsample_rate = 10;
   params.num_particles = 50;
+  params.resample_n_step= 10;
   particle_filter_.SetParams(params);
   particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
 
