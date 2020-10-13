@@ -360,7 +360,7 @@ namespace navigation {
             state_estimator_.estimate_state_cmd_actuation_time(timestamp);
 
         visualization::DrawCross(estimate_pose_local_frame_.loc, 0.5, 0x00000000, local_viz_msg_);
-        visualization::DrawPoint(Vector2f(0,0),10, local_viz_msg_);
+        //visualization::DrawPoint(Vector2f(0,0),10, local_viz_msg_);
 
         std::stringstream dbg_msg;
         dbg_msg << " -- pose_queue_size = "
@@ -403,7 +403,7 @@ namespace navigation {
         state_estimator_.transform_p_cloud_tf_obs_to_act(
                                     laser_pcloud_local_frame_,
                                     viz_pc);
-        visualization::DrawPointCloud(viz_pc, 0xFF000000, local_viz_msg_);
+        //visualization::DrawPointCloud(viz_pc, 0xFF000000, local_viz_msg_);
 
         viz_pub_.publish(local_viz_msg_);
 
