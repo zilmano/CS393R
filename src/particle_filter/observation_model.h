@@ -11,15 +11,21 @@
 
 class ObservationModel {
 public:
-    ObservationModel(float gamma, float sigma);
+    ObservationModel(float gamma, float sigma, float d_long, float d_short);
 
-    float calculate_accumulated_loglikelihood(simd_vec_type & intersections, simd_vec_type & observations);
+    float calculate_accumulated_loglikelihood(simd_vec_type & intersections, simd_vec_type & observations, float range_min, float range_max);
 
     void setGamma(float gamma) {
       gamma_ = gamma;
     };
     void setSigma(float sigma) {
       sigma_= sigma;
+    }
+    void setDLong(float d_long){
+      d_long_= d_long;
+    }
+    void setDShort(float d_short){
+      d_short_= d_short;
     }
 
     float calculate_normalized_weight();
@@ -29,6 +35,8 @@ public:
 private:
     float gamma_;
     float sigma_;
+    float d_long_;
+    float d_short_;
 
 };
 

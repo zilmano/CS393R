@@ -70,7 +70,7 @@ ParticleFilter::ParticleFilter() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    obs_likelihood_(1,PhysicsConsts::radar_noise_std),
+    obs_likelihood_(1,PhysicsConsts::radar_noise_std, 0.5, 0.5),
     map_loaded_(false),
     laser_obs_counter_(0) {
   SetParams(pf_params_);
@@ -203,7 +203,9 @@ void ParticleFilter::Update(const vector<float>& ranges,
   }*/
   float p_weight = obs_likelihood_.calculate_accumulated_loglikelihood(
       expected_ranges,
-      const_cast<vector<float>&>(ranges));
+      const_cast<vector<float>&>(ranges),
+      range_min,
+      range_max);
   p_ptr->weight = p_weight;
   //p_ptr->weight = 1.0;
 }
