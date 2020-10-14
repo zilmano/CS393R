@@ -240,15 +240,15 @@ namespace navigation {
                         std::cout << "    RePlan::Angle " << angle << " FPL "<< fpl << std::endl;
 
                         if (candidate > 0) {
-                            visualization::DrawArc(Vector2f(0,1/candidate), 1/candidate,0,
+                            visualization::DrawArc(Vector2f(0,1/candidate), std::abs(1/candidate),0,
                                                    angle,0x99CCFF,local_viz_msg_);
                         } else {
-                            visualization::DrawArc(Vector2f(0,-1/candidate), 1/candidate,0,
+                            visualization::DrawArc(Vector2f(0,-1/candidate), std::abs(1/candidate),0,
                                                                                angle,0x99CCFF,local_viz_msg_);
                         }
                     }
 
-                    visualization::DrawPathOption(candidate, fpl, 0, local_viz_msg_);
+                    //visualization::DrawPathOption(candidate, fpl, 0, local_viz_msg_);
                     if ((candidate == 0 && fabs(fpl-PhysicsConsts::radar_max_range) <
                         PhysicsConsts::radar_noise_std) || std::isinf(fpl)) {
                         if (fabs(candidate) < GenConsts::kEpsilon) {
@@ -273,15 +273,15 @@ namespace navigation {
             //std::cout << std::endl  << std::endl <<  std::endl;
             drive_msg_.curvature = best_c;
             if (best_c > 0)
-                visualization::DrawArc(Vector2f(0,1/best_c), 1/best_c,0,
+                visualization::DrawArc(Vector2f(0,1/best_c), std::abs(1/best_c),0,
                                    2.35,0xFF0000,local_viz_msg_);
             else if(best_c < 0)
-                visualization::DrawArc(Vector2f(0,-1/best_c), 1/best_c,0,
+                visualization::DrawArc(Vector2f(0,-1/best_c), std::abs(1/best_c),0,
                                            2.35,0xFF0000,local_viz_msg_);
             else
                 visualization::DrawLine(Vector2f(0,0),Vector2f(4,0),0xFF0000,local_viz_msg_);
 
-            visualization::DrawPathOption(best_c, best_fpl,  1, local_viz_msg_);
+            //visualization::DrawPathOption(best_c, best_fpl,  1, local_viz_msg_);
             return best_c;
         }
 
