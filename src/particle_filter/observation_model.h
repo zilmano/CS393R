@@ -6,7 +6,7 @@
 #define REPO_OBSERVATION_MODEL_H
 
 #include "shared/constants.h"
-#include "xsimd/xsimd.hpp"
+//#include "xsimd/xsimd.hpp"
 #include "common_def.h"
 
 class ObservationModel {
