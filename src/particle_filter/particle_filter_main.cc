@@ -123,7 +123,8 @@ void PublishParticles() {
 }
 
 void PublishPredictedScan() {
-  const uint32_t kColor = 0xd67d00;
+  //const uint32_t kColor = 0xd67d00;
+  const uint32_t kColor = 0xFF00;
   Vector2f robot_loc(0, 0);
   float robot_angle(0);
   particle_filter_.GetLocation(&robot_loc, &robot_angle);
@@ -178,7 +179,7 @@ void PublishVisualization() {
   ClearVisualizationMsg(vis_msg_);
 
   PublishParticles();
-  //PublishPredictedScan();
+  PublishPredictedScan();
   PublishTrajectory();
   visualization_publisher_.publish(vis_msg_);
 }
@@ -214,6 +215,15 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
   localization_msg.pose.y = robot_loc.y();
   localization_msg.pose.theta = robot_angle;
   localization_publisher_.publish(localization_msg);
+  // Visualize Real location in simulation/rosbag.
+  /*vis_msg_.header.stamp = ros::Time::now();
+  ClearVisualizationMsg(vis_msg_);
+  visualization::DrawCross(odom_loc, 0.5, 0x00000000, vis_msg_);
+  visualization::DrawLine(odom_loc,
+                          Eigen::Rotation2Df(odom_angle)*Vector2f(2,0),
+                          0xFF0000,
+                          vis_msg_);
+  visualization_publisher_.publish(vis_msg_);*/
   PublishVisualization();
 }
 
