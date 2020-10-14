@@ -360,8 +360,8 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
       prev_odom_angle_ = odom_angle;
       odom_initialized_ = true;
   }
-  cout << "odom loc: " << odom_loc.x() << "," << odom_loc.y() << " angle: " << odom_angle << endl;
-  cout << "prev_odom loc: " << prev_odom_loc_.x() << "," << prev_odom_loc_.y() << " angle: " << prev_odom_angle_ << endl;
+  //cout << "odom loc: " << odom_loc.x() << "," << odom_loc.y() << " angle: " << odom_angle << endl;
+  //cout << "prev_odom loc: " << prev_odom_loc_.x() << "," << prev_odom_loc_.y() << " angle: " << prev_odom_angle_ << endl;
 
   float d_angle = odom_angle-prev_odom_angle_;
   Vector2f d_loc = odom_loc-prev_odom_loc_;
@@ -376,15 +376,15 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
       float noise_x =   rng_.Gaussian(0, pf_params_.k_1*d_loc.norm()+pf_params_.k_2*fabs(d_angle));
       float noise_y =   rng_.Gaussian(0, pf_params_.k_1*d_loc.norm()+pf_params_.k_2*fabs(d_angle));
       float noise_angle = rng_.Gaussian(0, pf_params_.k_3*d_loc.norm()+pf_params_.k_4*fabs(d_angle));
-      cout << "   particle_pose: loc " << p.loc.x() << "," << p.loc.y()<< " theta " <<
-                p.angle << endl;
+      //cout << "   particle_pose: loc " << p.loc.x() << "," << p.loc.y()<< " theta " <<
+      //          p.angle << endl;
       PoseSE2 noisy_d_pose_loc(d_pose_base.loc + Vector2f(noise_x,noise_y),
                                d_pose_base.angle + noise_angle);
       PoseSE2 next_pose = tf::transform_pose_to_glob_frame(PoseSE2(p.loc,p.angle),noisy_d_pose_loc);
       p.loc = next_pose.loc;
       p.angle = next_pose.angle;
-      cout << "   particle new pose: loc " << p.loc.x() << "," << p.loc.y()<< " theta " <<
-                     p.angle << endl;
+      //cout << "   particle new pose: loc " << p.loc.x() << "," << p.loc.y()<< " theta " <<
+      //               p.angle << endl;
 
   }
   prev_odom_angle_ = odom_angle;
@@ -404,13 +404,28 @@ void ParticleFilter::Initialize(const string& map_file,
   // The "set_pose" button on the GUI was clicked, or an initialization message
   // was received from the log. Initialize the particles accordingly, e.g. with
   // some distribution around the provided location and angle.
-    cout << "loading map...." << endl;
-    map_.Load(map_file);
+    cout << "Intiazlize ParticleFilter" << endl;
+
+    // OLEG: hack fix for rosbag incomplete map name. Need to surround with full path
+    string full_map_file;
+    if (map_file.find('.') == string::npos) {
+        full_map_file = "maps/" + map_file + "/" + map_file + ".vectormap.txt";
+    } else {
+        full_map_file = map_file;
+    }
+
+    cout << "Loading map file '" << full_map_file << "'...." << endl;
+    map_.Load(full_map_file);
+    cout << "Done loading map." << endl;
 
     odom_initialized_ = false;
 
     //UniformParticleInit();
-    GaussianParticleInit(loc);
+    // OLEG TODO: right_angle=true is for debug. remove later
+    GaussianParticleInit(loc, angle, true);
+    for (size_t i = 0; i < pf_params_.num_particles; ++i) {
+        weights_(i) = 1;
+    }
     map_loaded_ = true;
 
 }
@@ -424,6 +439,10 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // variables to return them. Modify the following assignments:
   loc = Vector2f(0, 0);
   angle = 0;
+  for (size_t i = 0; i < pf_params_.num_particles; ++i) {
+    loc += weights_(i)*particles_[i].loc;
+    angle += weights_(i)*particles_[i].angle;
+  }
 }
 
 void ParticleFilter::UniformParticleInit() {
@@ -436,12 +455,15 @@ void ParticleFilter::UniformParticleInit() {
     }
 }
 
-void ParticleFilter::GaussianParticleInit(const Vector2f& loc) {
+void ParticleFilter::GaussianParticleInit(const Vector2f& loc, float angle, bool right_angle) {
     particles_.clear();
     for (unsigned int i = 0; i < pf_params_.num_particles; ++i) {
         float x = rng_.Gaussian(loc.x(),pf_params_.particle_init_sigma);
         float y = rng_.Gaussian(loc.y(),pf_params_.particle_init_sigma);
-        float angle = (rng_.UniformRandom(0,1)-0.5)*M_PI;
+        if (!right_angle) {
+            angle = (rng_.UniformRandom(0,1)-0.5)*M_PI;
+        }
+        //float angle = (rng_.UniformRandom(0,1)-0.5)*M_PI;
         particles_.push_back(Particle(Vector2f(x,y), angle, 0));
     }
 }

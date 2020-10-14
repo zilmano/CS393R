@@ -131,8 +131,11 @@ class ParticleFilter {
       obs_likelihood_.setGamma(pf_params_.gamma);
       obs_likelihood_.setSigma(pf_params_.sigma_obs);
       //particles_.resize(pf_params_.num_particles);
-      weights_.resize(pf_params_.num_particles, 1);
       UniformParticleInit();
+      weights_.resize(pf_params_.num_particles, 1);
+      for (size_t i = 0; i < pf_params_.num_particles; ++i) {
+              weights_(i) = 1;
+      }
 
       // OLEG TODO: set other params as they come
   }
@@ -152,7 +155,9 @@ class ParticleFilter {
        *       Specificaly, it would be nice to have one for a "kidnapped robot".
        */
       void UniformParticleInit();
-      void GaussianParticleInit(const Eigen::Vector2f& loc);
+      void GaussianParticleInit(const Eigen::Vector2f& loc,
+                                float angle,
+                                bool right_angle=false);
 
  private:
 
