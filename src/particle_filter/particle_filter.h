@@ -130,6 +130,8 @@ class ParticleFilter {
       pf_params_ = params;
       obs_likelihood_.setGamma(pf_params_.gamma);
       obs_likelihood_.setSigma(pf_params_.sigma_obs);
+      obs_likelihood_.setDLong(pf_params_.d_long);
+      obs_likelihood_.setDShort(pf_params_.d_long);
       //particles_.resize(pf_params_.num_particles);
       UniformParticleInit();
       weights_.resize(pf_params_.num_particles, 1);
