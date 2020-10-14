@@ -6,7 +6,7 @@
 #define REPO_COMMON_DEF_H
 
 #include <vector>
-#include "xsimd/xsimd.hpp"
+//#include "xsimd/xsimd.hpp"
 
 using simd_vec_type = std::vector<float>;
 
