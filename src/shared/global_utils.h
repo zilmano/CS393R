@@ -26,7 +26,7 @@
 #include "xtensor/xadapt.hpp"
 #include "xtensor/xmath.hpp"
 #include "xtensor/xindex_view.hpp"
-#include "xsimd/xsimd.hpp"
+//#include "xsimd/xsimd.hpp"
 
 
 namespace debug {
