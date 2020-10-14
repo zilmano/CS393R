@@ -174,6 +174,7 @@ void PublishVisualization() {
     // Rate-limit visualization.
     return;
   }
+  cout << "Publish..." << endl;
   t_last = GetMonotonicTime();
   vis_msg_.header.stamp = ros::Time::now();
   ClearVisualizationMsg(vis_msg_);
@@ -335,9 +336,11 @@ int main(int argc, char** argv) {
       n.advertise<sensor_msgs::LaserScan>("scan", 1);
 
   particle_filter::PfParams params;
-  params.radar_downsample_rate = 10;
-  params.num_particles = 50;
-  params.resample_n_step= 10;
+  params.radar_downsample_rate = 20;
+  params.num_particles = 30;
+  params.resample_n_step= 5;
+  params.d_long=0.3;
+  params.d_short=0.3;
   particle_filter_.SetParams(params);
   particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
 
