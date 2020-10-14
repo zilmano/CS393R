@@ -184,6 +184,7 @@ class ParticleFilter {
   ObservationModel obs_likelihood_;
   PfParams pf_params_;
   bool map_loaded_;
+  bool car_moving_;
   unsigned int laser_obs_counter_;
 
 

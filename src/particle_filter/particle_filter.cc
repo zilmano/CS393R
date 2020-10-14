@@ -72,6 +72,7 @@ ParticleFilter::ParticleFilter() :
     odom_initialized_(false),
     obs_likelihood_(1,PhysicsConsts::radar_noise_std, 0.5, 0.5),
     map_loaded_(false),
+    car_moving_(false),
     laser_obs_counter_(0) {
   SetParams(pf_params_);
 }
@@ -338,7 +339,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
 
   // OLEG TODO: next line is for testing - remove.
   weights_ /= (total_weight);
-  if ((laser_obs_counter_ % pf_params_.resample_n_step) == 0 ) {
+  if (car_moving_ && (laser_obs_counter_ % pf_params_.resample_n_step) == 0 ) {
       Resample();
       for (size_t i = 0; i < pf_params_.num_particles; ++i) {
           /*  OLEG TODO: this will work if we determine the location
@@ -361,6 +362,12 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
       prev_odom_loc_ = odom_loc;
       prev_odom_angle_ = odom_angle;
       odom_initialized_ = true;
+  }
+
+  if ((odom_loc - prev_odom_loc_).norm() < GenConsts::kEpsilon) {
+    car_moving_ = false;
+  } else {
+    car_moving_ = true;
   }
   //cout << "odom loc: " << odom_loc.x() << "," << odom_loc.y() << " angle: " << odom_angle << endl;
   //cout << "prev_odom loc: " << prev_odom_loc_.x() << "," << prev_odom_loc_.y() << " angle: " << prev_odom_angle_ << endl;
@@ -389,6 +396,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
       //               p.angle << endl;
 
   }
+  
   prev_odom_angle_ = odom_angle;
   prev_odom_loc_ = odom_loc;
 
