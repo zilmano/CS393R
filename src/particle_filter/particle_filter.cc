@@ -237,18 +237,41 @@ void ParticleFilter::Resample() {
   static Eigen::VectorXd new_weights;
   new_particles.resize(pf_params_.num_particles);
   new_weights.resize(pf_params_.num_particles, 1);
-
+  
+  // create a number line to represent the weights
   static vector<Eigen::Vector2f> number_line;
   number_line.resize(weights_.rows());
+
+  // set the first block to the first weight
   number_line[0] = Vector2f(0,weights_(0));
+
+  // for each subsequent block on the number line, set the current lower bound to the previous upper bound,
+  // and set the current upper bound by adding the weight
   for (size_t i = 1; i < number_line.size(); i++){
     float lower = number_line[i-1].y();
     float upper = number_line[i-1].y() + weights_(i);
     number_line[i] = Vector2f(lower,upper);
   }
+  
+  // IMPROVEMENT: LOW-VARIANCE RESAMPLING
+  static Eigen::VectorXd resamp_num;
+  resamp_num.resize(pf_params_.num_particles, 1);
+  resamp_num[0] = rng_.UniformRandom(0,1);
+  float inc = 1/pf_params_.num_particles;
 
+  for(size_t i = 1; i < pf_params_.num_particles; i++){
+      float val = resamp_num[i-1] + inc;
+      if(val >= 1){
+          float diff = val - 1;
+          val = diff;
+      }
+      resamp_num[i] = val;
+  }
+
+  // for each of the particles, if the RNG chooses the a place on the number line that correspond with that particle,
+  // add that particle to the new particle list
   for(size_t i = 0; i < particles_.size(); i++){
-    float x = rng_.UniformRandom(0,1);
+    float x = resamp_num[i];
     for(size_t j = 0; j < number_line.size(); j++){
       if((x > number_line[j].x()) and (x <= number_line[j].y())){
         new_particles[i] = particles_[j];
