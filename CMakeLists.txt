@@ -66,6 +66,8 @@ ROSBUILD_ADD_EXECUTABLE(particle_filter
                         src/particle_filter/particle_filter_main.cc
                         src/particle_filter/particle_filter.cc
                         src/particle_filter/observation_model.cpp
+                        src/particle_filter/motion_model.cpp
+                        src/particle_filter/clock.cpp
         )
 TARGET_LINK_LIBRARIES(particle_filter shared_library ${libs})
 

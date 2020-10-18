@@ -33,6 +33,7 @@
 #include "eigen3/Eigen/Geometry"
 #include "amrl_msgs/Localization2DMsg.h"
 #include "amrl_msgs/VisualizationMsg.h"
+#include "amrl_msgs/AckermannCurvatureDriveMsg.h"
 #include "gflags/gflags.h"
 #include "geometry_msgs/PoseArray.h"
 #include "sensor_msgs/LaserScan.h"
@@ -51,6 +52,7 @@
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
 #include "observation_model.h"
+#include "motion_model.h"
 
 // OLEG DBG:: Remove.
 #include <iostream>
@@ -80,7 +82,8 @@ DEFINE_string(odom_topic, "/odom", "Name of ROS topic for odometry data");
 DEFINE_string(init_topic,
               "/set_pose",
               "Name of ROS topic for initialization");
-DEFINE_string(map, "", "Map file to use");
+DEFINE_string(map, "GDC1", "Map file to use");
+DEFINE_string(drive_topic, "/ackermann_curvature_drive", "Name of ROS topic for driving data");
 
 DECLARE_int32(v);
 
@@ -93,6 +96,7 @@ config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
 bool run_ = true;
 particle_filter::ParticleFilter particle_filter_;
+MotionModel motion_model_(0.2, 0.2);
 ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 ros::Publisher laser_publisher_;
@@ -174,7 +178,7 @@ void PublishVisualization() {
     // Rate-limit visualization.
     return;
   }
-  cout << "Publish..." << endl;
+  //cout << "Publish..." << endl;
   t_last = GetMonotonicTime();
   vis_msg_.header.stamp = ros::Time::now();
   ClearVisualizationMsg(vis_msg_);
@@ -243,6 +247,10 @@ void InitCallback(const amrl_msgs::Localization2DMsg& msg) {
   dbg_init_angle_ = init_angle;
 }
 
+void DriveCallback(const amrl_msgs::AckermannCurvatureDriveMsg & msg) {
+    motion_model_.register_command(msg.curvature, msg.velocity);
+}
+
 // OLEG TODO: remove DBG function maybe at the end
 void debug_get_sub_seg_in_circ() {
   /*int i = 0;
@@ -303,6 +311,10 @@ void ProcessLive(ros::NodeHandle* n) {
       FLAGS_odom_topic.c_str(),
       1,
       OdometryCallback);
+  ros::Subscriber drive_sub = n->subscribe(
+      FLAGS_drive_topic.c_str(),
+      1,
+      DriveCallback);
   while (ros::ok() && run_) {
     ros::spinOnce();
     PublishVisualization();
@@ -335,6 +347,7 @@ int main(int argc, char** argv) {
   laser_publisher_ =
       n.advertise<sensor_msgs::LaserScan>("scan", 1);
 
+  particle_filter_.set_motion_model(&motion_model_);
   particle_filter::PfParams params;
   params.radar_downsample_rate = 20;
   params.num_particles = 30;

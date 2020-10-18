@@ -29,6 +29,7 @@
 //#include "xsimd/xsimd.hpp"
 
 
+
 namespace debug {
     template <typename T>
     void print_line(const geometry::Line<T>& line,std::string prefix = "") {

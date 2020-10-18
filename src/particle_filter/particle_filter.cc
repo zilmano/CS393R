@@ -43,6 +43,8 @@
 #include "amrl_msgs/VisualizationMsg.h"
 #include "visualization/visualization.h"
 
+#include "motion_model.h"
+
 
 using geometry::line2f;
 using geometry::Line;
@@ -374,6 +376,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
 
   float d_angle = odom_angle-prev_odom_angle_;
   Vector2f d_loc = odom_loc-prev_odom_loc_;
+/*
   //cout << "d_loc: " << d_loc.x() << "," << d_loc.y() << " angle: " << d_angle << endl;
   PoseSE2 d_pose_base = tf::transform_pose_to_glob_frame(
           PoseSE2(Vector2f(0,0),-prev_odom_angle_),
@@ -381,6 +384,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
 
   //cout << "d_pose: loc " << d_pose_loc.loc.x() << "," << d_pose_loc.loc.y() << " theta " <<
   //        d_pose_loc.angle << endl;
+
   for (auto &p : particles_) {
       float noise_x =   rng_.Gaussian(0, pf_params_.k_1*d_loc.norm()+pf_params_.k_2*fabs(d_angle));
       float noise_y =   rng_.Gaussian(0, pf_params_.k_1*d_loc.norm()+pf_params_.k_2*fabs(d_angle));
@@ -396,6 +400,10 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
       //               p.angle << endl;
 
   }
+  */
+
+  motion_model_->transform_pose(particles_, rng_, d_loc, d_angle);
+
   
   prev_odom_angle_ = odom_angle;
   prev_odom_loc_ = odom_loc;

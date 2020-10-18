@@ -405,7 +405,7 @@ namespace navigation {
                                     viz_pc);
         //visualization::DrawPointCloud(viz_pc, 0xFF000000, local_viz_msg_);
 
-        viz_pub_.publish(local_viz_msg_);
+        //viz_pub_.publish(local_viz_msg_);
 
         step_num_++;
 

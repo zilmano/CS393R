@@ -40,6 +40,8 @@ namespace ros {
    class Publisher;
 }
 
+class MotionModel;
+
 namespace particle_filter {
 
 struct Particle {
@@ -142,6 +144,10 @@ class ParticleFilter {
       // OLEG TODO: set other params as they come
   }
 
+  void set_motion_model(MotionModel * ptr_motion_mdl) {
+      motion_model_ = ptr_motion_mdl;
+  }
+
   void SetRosHandleAndInitPubs(ros::Publisher* pub,
                                amrl_msgs::VisualizationMsg* msg);
 
@@ -163,6 +169,7 @@ class ParticleFilter {
 
  private:
 
+  // List of particles being tracked.
   // List of particles being tracked.
   std::vector<Particle> particles_;
 
@@ -187,6 +194,7 @@ class ParticleFilter {
   bool car_moving_;
   unsigned int laser_obs_counter_;
 
+  MotionModel * motion_model_;
 
 };
 }  // namespace particle filter
