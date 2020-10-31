@@ -57,6 +57,7 @@ SET(libs roslib roscpp rosbag glog gflags amrl-shared-lib boost_system lua5.1
         pthread xtensor xtensor-blas xsimd ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 
 ROSBUILD_ADD_EXECUTABLE(slam
+                        src/slam/rasterizer.cpp
                         src/slam/slam_main.cc
                         src/slam/slam.cc)
 TARGET_LINK_LIBRARIES(slam shared_library ${libs})
