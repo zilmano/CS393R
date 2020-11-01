@@ -50,6 +50,7 @@
 #include "slam.h"
 #include "vector_map/vector_map.h"
 #include "visualization/visualization.h"
+#include "rasterizer.h"
 
 using amrl_msgs::VisualizationMsg;
 using geometry::line2f;
@@ -256,6 +257,17 @@ void SignalHandler(int) {
 }
 
 int main(int argc, char** argv) {
+
+    Rasterizer rast{256, 256};
+    std::vector<Vector2f> pts{{1.0, 1.0}, {1.0, 1.3}, {1.0, 1.5}, {1.0, 1.7}, {1.0, 1.9},
+                              {1.3, 1.0}, {1.5, 1.0}, {1.7, 1.0}, {1.9, 1.0}, {1.9, 1.2},
+                              {1.9, 1.4}, {1.9, 1.6}, {1.9, 1.8}, {1.9, 2.0}, {2.1, 2.0},
+                              {2.3, 2.0}, {2.5, 2.0}, {2.7, 2.0}, {2.9, 2.0}, {2.9, 2.5},
+                              {2.9, 3.0}};
+    Matrix2f sigma;
+    sigma << 1.75e-3, 1e-3, 1e-3, 1.75e-3;
+    rast.rasterize(pts, sigma);
+/*
   google::ParseCommandLineFlags(&argc, &argv, false);
   signal(SIGINT, SignalHandler);
   // Initialize ROS.
@@ -272,6 +284,6 @@ int main(int argc, char** argv) {
       n.advertise<sensor_msgs::LaserScan>("scan", 1);
 
   ProcessLive(&n);
-
+*/
   return 0;
 }

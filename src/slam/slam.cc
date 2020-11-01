@@ -35,6 +35,7 @@
 #include "slam.h"
 
 #include "vector_map/vector_map.h"
+#include "rasterizer.h"
 
 using std::cout;
 using std::endl;
