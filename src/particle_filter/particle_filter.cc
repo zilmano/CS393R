@@ -364,7 +364,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
       odom_initialized_ = true;
   }
 
-  if ((odom_loc - prev_odom_loc_).norm() < GenConsts::kEpsilon) {
+  if ((odom_loc - prev_odom_loc_).norm() < 0.0005) {
     car_moving_ = false;
   } else {
     car_moving_ = true;
