@@ -41,6 +41,8 @@ add_subdirectory(thirdparty/xtensor)
 add_subdirectory(thirdparty/xtensor-blas)
 add_subdirectory(thirdparty/xsimd)
 
+find_package(OpenCV REQUIRED)
+
 add_definitions(-DHAVE_CBLAS=1)
 
 if (WIN32)
@@ -55,7 +57,7 @@ message(STATUS "BLAS VENDOR:    " ${BLA_VENDOR})
 message(STATUS "BLAS LIBRARIES: " ${BLAS_LIBRARIES})
 
 SET(libs roslib roscpp rosbag glog gflags amrl-shared-lib boost_system lua5.1
-        pthread xtensor xtensor-blas xsimd ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+        pthread xtensor xtensor-blas xsimd ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}  ${OpenCV_LIBS})
 
 ROSBUILD_ADD_EXECUTABLE(slam
                         src/slam/rasterizer.cpp
@@ -89,7 +91,7 @@ target_include_directories(particle_filter PUBLIC
         ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas)
 
 target_include_directories(slam PUBLIC
-        ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas)
+        ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas  ${OpenCV_INCLUDE_DIRS})
 
 
 ADD_EXECUTABLE(eigen_tutorial

@@ -6,7 +6,11 @@
 #include "2d_normal.h"
 #include <eigen3/Eigen/Eigenvalues>
 
-Rasterizer::Rasterizer(int res_x, int res_y) : res_x(res_x), res_y(res_y) {}
+#include "cvshow.h"
+
+
+Rasterizer::Rasterizer(int res_x, int res_y) : res_x(res_x), res_y(res_y) {
+    image.resize(res_x, res_y);}
 
 void Rasterizer::update_grid_dim(const std::vector<Vector2f> &pts) {
     min_x = INFINITY;
@@ -19,8 +23,8 @@ void Rasterizer::update_grid_dim(const std::vector<Vector2f> &pts) {
         max_x = (max_x > p[0])?max_x:p[0];
         max_y = (max_y > p[1])?max_y:p[1];
     }
-    float gap_x = (max_x - min_x) / res_x * 5;
-    float gap_y = (max_y - min_y) / res_y * 5;
+    float gap_x = (max_x - min_x) * 0.1;
+    float gap_y = (max_y - min_y) * 0.1;
     min_x -= gap_x;
     max_x += gap_x;
     step_x = (max_x - min_x) / res_x;
@@ -31,25 +35,25 @@ void Rasterizer::update_grid_dim(const std::vector<Vector2f> &pts) {
 
 void Rasterizer::draw_point(const std::vector<Vector2f> &pts, Matrix2f & sigma) {
     Eigen::EigenSolver<Matrix2f> dec{sigma};
-    float radius = sqrt(6 * dec.eigenvalues().real().maxCoeff());
+    float radius = sqrt(5 * dec.eigenvalues().cwiseAbs().eval().maxCoeff());
+    std::cout << radius << std::endl;
     std::vector<Vector2f> coords;
     coords.reserve(res_x * res_y);
     for (auto & p : pts) {
-        auto low = coor2idx(p - Vector2f{radius, radius}).cast<int>().cwiseMax(Eigen::Vector2i{0, 0});
-        auto high = coor2idx(p + Vector2f{radius, radius}).cast<int>().cwiseMin(Eigen::Vector2i{res_x, res_y});
+        auto low = coor2idx(p - Vector2f{radius, radius}).cwiseMax(Vector2f{0, 0}).eval();
+        auto high = coor2idx(p + Vector2f{radius, radius}).cwiseMin(Vector2f{res_x, res_y}).eval();
+
         coords.clear();
-        for (int x = low[0]; x < high[0]; ++x)
-            for (int y = low[1]; y < high[1]; ++y)
+        for (int x = low[0]; x <= high[0]; ++x)
+            for (int y = low[1]; y <= high[1]; ++y)
                 coords.emplace_back(idx2coor(x, y));
         auto likelihood = unnormalized_mvn(coords, p, sigma);
         auto iter = likelihood.begin();
-        for (int x = low[0]; x < high[0]; ++x)
-            for (int y = low[1]; y < high[1]; ++y) {
-                image(x, y) = *iter;
-                iter++;
-            }
+        for (int x = low[0]; x <= high[0]; ++x)
+            for (int y = low[1]; y <= high[1]; ++y)
+                image(x, y) += *(iter++);
     }
-    image /= image.sum();
+    image = (image / image.sum()).log().eval();
 }
 
 inline Vector2f Rasterizer::idx2coor(int ix, int iy) {
@@ -57,6 +61,14 @@ inline Vector2f Rasterizer::idx2coor(int ix, int iy) {
 }
 
 inline Vector2f Rasterizer::coor2idx(const Vector2f &coor) {
-    auto diff = coor - Vector2f{min_x, min_y};
+    Vector2f diff = coor - Vector2f{min_x, min_y};
     return Vector2f{diff[0] / step_x, diff[1] / step_y};
+}
+
+decltype(Rasterizer::image) & Rasterizer::rasterize(std::vector<Vector2f> &pts, Matrix2f & sigma) {
+    image.setZero();
+    update_grid_dim(pts);
+    draw_point(pts, sigma);
+    normalized_imshow(Eigen::MatrixXf(image.exp().matrix()));
+    return image;
 }
