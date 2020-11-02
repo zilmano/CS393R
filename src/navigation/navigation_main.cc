@@ -88,7 +88,7 @@ void LaserCallback(const sensor_msgs::LaserScan& msg) {
   // with some overhead, otherwise just go by indexes and set new value, if point_cloud_ size is bigger then 
   // msg.ranges.size() set all the remaining vector indexes to zero.
 
-  tf::proj_lidar_2_pts(msg, point_cloud_, kLaserLoc);
+  tf::proj_lidar_2_pts(msg, point_cloud_, kLaserLoc, 1);
   navigation_->ObservePointCloud(point_cloud_, msg.header.stamp.toSec());
   last_laser_msg_ = msg;
 
