@@ -1,5 +1,5 @@
 /*
- * collision_detect
+ * global_utils
  *  Created on: Sep 21, 2020
  *      Author: olegzilm
  */
@@ -184,8 +184,19 @@ namespace tf {
         return new_frame_pose;
     }
 
-
     inline PoseSE2 transform_pose_to_loc_frame(const PoseSE2& frame_delta,
+                                             const PoseSE2& pose_glob_frame) {
+            // frame delta is how ahead is the pose of loc frame base from the glob frame
+            float new_frame_angle = pose_glob_frame.angle - frame_delta.angle;
+
+            Eigen::Vector2f new_frame_loc =
+                    Eigen::Rotation2Df( -frame_delta.angle) * (pose_glob_frame.loc-frame_delta.loc);
+            PoseSE2 new_frame_pose(new_frame_loc,new_frame_angle);
+            return new_frame_pose;
+     }
+
+
+    inline PoseSE2 transform_pose_to_loc_frame_x_axis(const PoseSE2& frame_delta,
                                         const PoseSE2& pose_glob_frame) {
         // frame delta is how ahead is the loc frame (of pose_curr_frame) from the glob frame
         float new_frame_angle = 0;
@@ -197,6 +208,7 @@ namespace tf {
         return new_frame_pose;
     }
 
+
     inline Eigen::Vector2f transform_point_to_glob_frame(const PoseSE2& frame_delta,
                                            const Eigen::Vector2f& point_loc_frame) {
         // frame_delta is the cooridnates of the loc frame base in the global frame
@@ -205,7 +217,35 @@ namespace tf {
         return new_frame_loc;
     }
 
+    inline void transform_points_to_glob_frame(const PoseSE2& frame_delta,
+                                               const std::vector<Eigen::Vector2f>& points_loc_frame,
+                                               std::vector<Eigen::Vector2f>& new_frame_points) {
+        size_t cloud_size = points_loc_frame.size();
+        new_frame_points.resize(cloud_size);
+        for (size_t i = 0; i < cloud_size; ++i) {
+            new_frame_points[i] = transform_point_to_glob_frame(frame_delta, points_loc_frame[i]);
+        }
+
+    }
+
     inline Eigen::Vector2f transform_point_to_loc_frame(const PoseSE2& frame_delta,
+                                              const Eigen::Vector2f& point_glob_frame) {
+           // frame_delta is the cooridnates of the loc frame base in the global frame
+           Eigen::Vector2f new_frame_loc = Eigen::Rotation2Df(-frame_delta.angle) * (point_glob_frame-frame_delta.loc);
+           return new_frame_loc;
+    }
+
+    inline void transform_points_to_loc_frame(const PoseSE2& frame_delta,
+                                                   const std::vector<Eigen::Vector2f>& points_glob_frame,
+                                                   std::vector<Eigen::Vector2f>& new_frame_points) {
+            size_t cloud_size = points_glob_frame.size();
+            new_frame_points.resize(cloud_size);
+            for (size_t i = 0; i < cloud_size; ++i) {
+                new_frame_points[i] = transform_point_to_loc_frame(frame_delta, points_glob_frame[i]);
+            }
+    }
+
+    inline Eigen::Vector2f transform_point_to_loc_frame_x_axis(const PoseSE2& frame_delta,
                                           const Eigen::Vector2f& point_glob_frame) {
            // frame_delta is the cooridnates of the loc frame base in the global frame
         Eigen::Vector2f rotated_displacement =
@@ -231,11 +271,36 @@ namespace tf {
     inline void proj_lidar_2_pts(const sensor_msgs::LaserScan& msg,
                                  std::vector<Eigen::Vector2f>& point_cloud,
                                  const Eigen::Vector2f& kLaserLoc,
-                                 bool filter_max_range=false) {
+                                 unsigned int n, bool filter_max_range=false) {
+
+      unsigned int num_ranges;
+      float angle_max_true;
+      if (n != 1) {
+          unsigned int downsample_truncated_pts = ((msg.ranges.size()-1)%n);
+          //cout << "downsample_truncated_pts:" << downsample_truncated_pts;
+          num_ranges = std::floor((msg.ranges.size()-downsample_truncated_pts)/n)+1;
+          angle_max_true = msg.angle_min + (msg.ranges.size()-downsample_truncated_pts-1)*msg.angle_increment;
+      } else {
+          num_ranges = msg.ranges.size();
+          angle_max_true = msg.angle_min + (msg.ranges.size()-1)*msg.angle_increment;
+      }
+
+      static std::vector<float> downsampled_ranges;
+      downsampled_ranges.resize(num_ranges);
+      //cout << "LIDAR scan size:" << ranges.size() << endl;
+      unsigned int downsample_cnt = 0;
+      for (size_t i=0; i < msg.ranges.size(); ++i) {
+            if (i%n == 0) {
+                downsampled_ranges[downsample_cnt] = msg.ranges[i];
+                downsample_cnt++;
+            }
+      }
+
       point_cloud.clear();
+      float angle_incr = (angle_max_true - msg.angle_min)/num_ranges;
       float curr_laser_angle = msg.angle_min;
-      for (size_t i = 0; i < msg.ranges.size(); ++i) {
-        float curr_range = msg.ranges[i];
+      for (size_t i = 0; i < num_ranges; ++i) {
+        float curr_range = downsampled_ranges[i];
         if (curr_range >= msg.range_min && curr_range <= msg.range_max) {
           if (!filter_max_range ||
               curr_range <= (msg.range_max-PhysicsConsts::radar_noise_std)) {
@@ -245,7 +310,7 @@ namespace tf {
             point_cloud.push_back(baselink_loc);
           }
         }
-        curr_laser_angle += msg.angle_increment;
+        curr_laser_angle += angle_incr;
       }
     }
 }
