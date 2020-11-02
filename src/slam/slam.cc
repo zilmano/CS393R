@@ -27,85 +27,106 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "shared/math/geometry.h"
-#include "shared/math/line2d.h"
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 
-#include "config_reader/config_reader.h"
 #include "slam.h"
 
 #include "vector_map/vector_map.h"
-#include "rasterizer.h"
+#include "shared/global_utils.h"
 
+using namespace math_util;
+using Eigen::Affine2f;
+using Eigen::Rotation2Df;
+using Eigen::Translation2f;
+using Eigen::Vector2f;
+using Eigen::Vector2i;
 using std::cout;
 using std::endl;
 using std::string;
 using std::swap;
 using std::vector;
-using Eigen::Vector2f;
-using Eigen::Vector2i;
 using vector_map::VectorMap;
 
-DEFINE_double(num_particles, 50, "Number of particles");
-
-// Fill in the body of these functions and create helpers as needed
-// in order to implement SLAM
-
-// Milestone 2 will be implemented here.
-
 namespace slam {
-
-config_reader::ConfigReader config_reader_({"config/particle_filter.lua"});
 
 SLAM::SLAM() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
-    odom_initialized_(false) {}
+    odom_initialized_(false),
+    time_to_update_(false){}
 
-void SLAM::GetParticles(vector<Particle>* particles) const {
-  *particles = particles_;
+void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
+  // Return the latest pose estimate of the robot.
+  *loc = Vector2f(0, 0);
+  *angle = 0;
 }
 
-void SLAM::GetPredictedPointCloud(const Vector2f& loc,
-                                            const float angle,
-                                            int num_ranges,
-                                            float range_min,
-                                            float range_max,
-                                            float angle_min,
-                                            float angle_max,
-                                            vector<Vector2f>* scan_ptr) {
+void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
+  // A new laser scan has been observed. Decide whether to add it as a pose
+  // for SLAM. If decided to add, align it to the scan from the last saved pose,
+  // and save both the scan and the optimized pose.
+  if (!time_to_update_)
+      return;
+
+  time_to_update_ = false;
+  static vector<Vector2f> curr_scan;
+  static vector<Vector2f> curr_scan_map_frame;
+  tf::proj_lidar_2_pts(msg, curr_scan,
+                       CarDims::kLaserLoc,
+                       params_.radar_downsample_rate);
+
+  PoseSE2 predicted_pose = ExecCSM(curr_scan);
+  tf::transform_points_to_glob_frame(predicted_pose, curr_scan, curr_scan_map_frame);
+  map_.insert(std::end(map_),std::begin(map_),std::end(map_));
+
+  poses_.push_back(predicted_pose);
+  prev_scan_ = curr_scan;
 
 }
 
-void SLAM::Update(const vector<float>& ranges,
-                            float range_min,
-                            float range_max,
-                            float angle_min,
-                            float angle_max,
-                            Particle* p_ptr) {
+void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
+  if (!odom_initialized_) {
+    prev_odom_angle_ = odom_angle;
+    prev_odom_loc_ = odom_loc;
+    odom_initialized_ = true;
+    return;
+  }
+
+    /*if ((odom_loc - prev_odom_loc_).norm() < 0.0005) {
+      car_moving_ = false;
+    } else {
+      car_moving_ = true;
+    }*/
+
+    float d_angle = odom_angle-prev_odom_angle_;
+    Vector2f d_loc = odom_loc-prev_odom_loc_;
+
+    if ( d_loc.norm() > params_.update_tresh_dist_ ||
+            d_angle > params_.update_tresh_angle_) {
+       delta_T_ = PoseSE2(d_loc, d_angle);
+       time_to_update_ = true;
+       prev_odom_angle_ = odom_angle;
+       prev_odom_loc_ = odom_loc;
+    }
+
+
+
+  // Keep track of odometry to estimate how far the robot has moved between 
+  // poses.
 }
 
-void SLAM::Resample() {
+vector<Vector2f> SLAM::GetMap() {
+  //vector<Vector2f> map;
+  // Reconstruct the map as a single aligned point cloud from all saved poses
+  // and their respective scans.
+  return map_;
 }
 
-void SLAM::ObserveLaser(const vector<float>& ranges,
-                                  float range_min,
-                                  float range_max,
-                                  float angle_min,
-                                  float angle_max) {
+PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan_point_cloud) const {
+    return PoseSE2();
 }
 
-void SLAM::ObserveOdometry(const Vector2f& odom_loc,
-                                     const float odom_angle) {
-}
-
-void SLAM::Initialize(const string& map_file,
-                                const Vector2f& loc,
-                                const float angle) {
-}
-
-void SLAM::GetLocation(Eigen::Vector2f* loc, float* angle) const {
-}
 
 
 }  // namespace slam
