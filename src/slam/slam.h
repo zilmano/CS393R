@@ -26,6 +26,7 @@
 #include "eigen3/Eigen/Geometry"
 #include "shared/global_utils.h"
 #include "sensor_msgs/LaserScan.h"
+#include "rasterizer.h"
 #include <cmath>
 
 #ifndef SRC_SLAM_H_
@@ -38,8 +39,11 @@ namespace slam {
 struct SlamParams {
     explicit SlamParams(): radar_downsample_rate(1),
                             k_1(1), k_2(1), k_3(0.3), k_4(1),
-                            update_tresh_angle_(M_PI/3),
-                            update_tresh_dist_(0.5){}
+                            update_tresh_angle(M_PI/3),
+                            update_tresh_dist(0.5),
+                            linspace_cube(20){
+        sigma_rasterizer <<  1.75e-3, 1e-3, 1e-3, 1.75e-3;
+    }
     unsigned int radar_downsample_rate;
     //unsigned int resample_n_step;
     //float particle_init_sigma;
@@ -49,8 +53,10 @@ struct SlamParams {
     float k_2;
     float k_3;
     float k_4;
-    float update_tresh_angle_;
-    float update_tresh_dist_;
+    float update_tresh_angle;
+    float update_tresh_dist;
+    float linspace_cube;
+    Eigen::Matrix2f sigma_rasterizer;
     //float sigma_obs;
     //float gamma;
 };
@@ -74,12 +80,23 @@ class SLAM {
   // Get latest robot pose.
   void GetPose(Eigen::Vector2f* loc, float* angle) const;
 
-  PoseSE2 ExecCSM(const std::vector<Eigen::Vector2f>& curr_scan_point_cloud) const;
+  PoseSE2 ExecCSM(const std::vector<Eigen::Vector2f>& curr_scan_point_cloud);
 
-  float CalcPoseMLE(const Eigen::ArrayXXf& lookup_table, const std::vector<Eigen::Vector2f>& transposed_scan) {return 0;};
+  float CalcPoseMLE(const Eigen::ArrayXXf& lookup_table,
+                    const std::vector<Eigen::Vector2f>& transposed_scan,
+                    PoseSE2 proposed_pose,
+                    PoseSE2 mean_pose) {return 0;};
   float LocProbMotionModel(const Eigen::Vector2f& loc,const PoseSE2& mean, Eigen::Matrix3f cov) {return 0;};
 
  private:
+  void CalcCSMCube(float scale_factor,
+                   const PoseSE2& curr_pose_mean,
+                   float &start_x,
+                   float &start_y,
+                   float &start_theta,
+                   float &end_x,
+                   float &end_y,
+                   float &end_theta);
 
 
  private:
@@ -93,9 +110,11 @@ class SLAM {
   std::vector<Eigen::Vector2f> prev_scan_;
   std::vector<PoseSE2> poses_;
   std::vector<Eigen::Vector2f> map_;
+
   PoseSE2 delta_T_;
   bool time_to_update_;
 
+  Rasterizer rasterizer_;
   SlamParams params_;
 };
 }  // namespace slam

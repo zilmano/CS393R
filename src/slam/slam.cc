@@ -54,7 +54,8 @@ SLAM::SLAM() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
     odom_initialized_(false),
-    time_to_update_(false){}
+    time_to_update_(false),
+    rasterizer_{256, 256}{}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
   // Return the latest pose estimate of the robot.
@@ -78,7 +79,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
 
   PoseSE2 predicted_pose = ExecCSM(curr_scan);
   tf::transform_points_to_glob_frame(predicted_pose, curr_scan, curr_scan_map_frame);
-  map_.insert(std::end(map_),std::begin(map_),std::end(map_));
+  map_.insert(std::end(curr_scan_map_frame),std::begin(map_),std::end(map_));
 
   poses_.push_back(predicted_pose);
   prev_scan_ = curr_scan;
@@ -86,12 +87,12 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
 }
 
 void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
-  if (!odom_initialized_) {
-    prev_odom_angle_ = odom_angle;
-    prev_odom_loc_ = odom_loc;
-    odom_initialized_ = true;
-    return;
-  }
+   if (!odom_initialized_) {
+     prev_odom_angle_ = odom_angle;
+     prev_odom_loc_ = odom_loc;
+     odom_initialized_ = true;
+     return;
+   }
 
     /*if ((odom_loc - prev_odom_loc_).norm() < 0.0005) {
       car_moving_ = false;
@@ -102,18 +103,15 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
     float d_angle = odom_angle-prev_odom_angle_;
     Vector2f d_loc = odom_loc-prev_odom_loc_;
 
-    if ( d_loc.norm() > params_.update_tresh_dist_ ||
-            d_angle > params_.update_tresh_angle_) {
+    if ( d_loc.norm() > params_.update_tresh_dist ||
+            d_angle > params_.update_tresh_angle) {
        delta_T_ = PoseSE2(d_loc, d_angle);
        time_to_update_ = true;
        prev_odom_angle_ = odom_angle;
        prev_odom_loc_ = odom_loc;
     }
-
-
-
-  // Keep track of odometry to estimate how far the robot has moved between 
-  // poses.
+    // Keep track of odometry to estimate how far the robot has moved between
+    // poses.
 }
 
 vector<Vector2f> SLAM::GetMap() {
@@ -123,10 +121,88 @@ vector<Vector2f> SLAM::GetMap() {
   return map_;
 }
 
-PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan_point_cloud) const {
-    return PoseSE2();
+PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
+    static vector<Vector2f> transposed_curr_scan;
+    PoseSE2 prev_pose  = poses_.back();
+    PoseSE2 curr_pose_mean = prev_pose + delta_T_;
+
+    Eigen::ArrayXXf lookup_table = rasterizer_.rasterize(
+            prev_scan_,
+            params_.sigma_rasterizer);
+
+    float scale_factor = 1;
+    float x_start,x_end,
+          y_start,y_end,
+          theta_start,theta_end;
+
+    CalcCSMCube(scale_factor,
+                curr_pose_mean,
+                x_start, y_start, theta_start,
+                x_end, y_end, theta_end);
+
+    float y_step = (y_end-y_start)/params_.linspace_cube;
+    float x_step = (x_end-x_start)/params_.linspace_cube;
+    float theta_step = (theta_end-theta_start)/params_.linspace_cube;
+
+    float x_t = x_start;
+    float y_t = y_start;
+    float theta_t = theta_start;
+    PoseSE2 mle_pose = curr_pose_mean;
+    float max_posterior_prob = 0;
+    for (int i = 0; i <= params_.linspace_cube; ++i) {
+        for (int j = 0; j <=  params_.linspace_cube; ++j) {
+            for (int k = 0; k <=  params_.linspace_cube; ++k) {
+                 Vector2f loc_t(x_t,y_t);
+                 PoseSE2 candidate_d_T(loc_t-prev_pose.loc,theta_t-prev_pose.angle);
+                 PoseSE2 candidate_pose = prev_pose + candidate_d_T;
+                 tf::transform_points_to_loc_frame(candidate_d_T,
+                                                   curr_scan,
+                                                   transposed_curr_scan);
+
+                 float posterior_prob = CalcPoseMLE(lookup_table,
+                                                    transposed_curr_scan,
+                                                    candidate_pose,
+                                                    curr_pose_mean);
+                 if (posterior_prob > max_posterior_prob) {
+                     max_posterior_prob = posterior_prob;
+                     mle_pose = PoseSE2(x_t,y_t,theta_t);
+                 }
+                 theta_t += theta_step;
+            }
+            y_t += y_step;
+        }
+        x_t += x_step;
+    }
+
+    return mle_pose;
 }
 
+void SLAM::CalcCSMCube(float scale_factor,
+                       const PoseSE2& curr_pose_mean,
+                       float &start_x,
+                       float &start_y,
+                       float &start_theta,
+                       float &end_x,
+                       float &end_y,
+                       float &end_theta) {
+    // Start and end ranges for all 3 dimensions of the cube around the x_t pose.
+    // This is the variance for each dimension*some_scaling_factor
+    // Variance is determined according to lecture 8 particle filter motion model.
+    if (scale_factor <= 0)
+        throw "scale_factor has to be a positive number.";
 
+    float sigma_x_y = params_.k_1*delta_T_.loc.norm()
+                         + params_.k_2*fabs(delta_T_.angle);
+
+    float sigma_theta = params_.k_3*delta_T_.loc.norm()
+                            + params_.k_4*fabs(delta_T_.angle);
+
+    start_x = curr_pose_mean.loc.x() - scale_factor*sigma_x_y;
+    start_y = curr_pose_mean.loc.y() - scale_factor*sigma_x_y;
+    start_theta = curr_pose_mean.angle - scale_factor*sigma_theta;
+    end_x = curr_pose_mean.loc.x() + scale_factor*sigma_x_y;
+    end_y = curr_pose_mean.loc.y() + scale_factor*sigma_x_y;
+    end_theta = curr_pose_mean.angle + scale_factor*sigma_theta;
+}
 
 }  // namespace slam
