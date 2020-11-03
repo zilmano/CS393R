@@ -211,7 +211,7 @@ float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
   float motion_prob = std::accumulate(llh.begin(), llh.end(), 0);
 
   // observation model * motion model
-  transform(obs_prob.begin(), obs_prob.end(), obs_prob.begin(), [motion_prob](float &c){ return c*motion_prob; });
+  transform(obs_prob.begin(), obs_prob.end(), obs_prob.begin(), [motion_prob](float &c){ return c + motion_prob; });
 
   return std::accumulate(obs_prob.begin(), obs_prob.end(), 0); 
 }
