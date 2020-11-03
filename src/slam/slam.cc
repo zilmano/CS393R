@@ -96,7 +96,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
   predicted_pose.pprint("ExecCSM: predicted pose:");
   cout << "transform to global frame and add to map " << endl;
   tf::transform_points_to_glob_frame(predicted_pose, curr_scan, curr_scan_map_frame);
-  cout << "Transfrmed scan size:" << curr_scan_map_frame.size() << endl;
+  cout << "Transformed scan size:" << curr_scan_map_frame.size() << endl;
   map_.insert(std::end(map_),std::begin(curr_scan_map_frame),std::end(curr_scan_map_frame));
   cout << "new map size:" << map_.size()<<endl;
 
@@ -153,7 +153,7 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
             prev_scan_,
             params_.sigma_rasterizer);
 
-    float scale_factor = 1;
+    float scale_factor = 2;
     float x_start,x_end,
           y_start,y_end,
           theta_start,theta_end;
@@ -267,10 +267,10 @@ void SLAM::CalcCSMCube(float scale_factor,
 
     start_x = curr_pose_mean.loc.x() - scale_factor*sigma_x_y;
     start_y = curr_pose_mean.loc.y() - scale_factor*sigma_x_y;
-    start_theta = curr_pose_mean.angle - scale_factor*sigma_theta;
+    start_theta = curr_pose_mean.angle - 10*scale_factor*sigma_theta;
     end_x = curr_pose_mean.loc.x() + scale_factor*sigma_x_y;
     end_y = curr_pose_mean.loc.y() + scale_factor*sigma_x_y;
-    end_theta = curr_pose_mean.angle + scale_factor*sigma_theta;
+    end_theta = curr_pose_mean.angle + 10*scale_factor*sigma_theta;
 }
 
 }  // namespace slam
