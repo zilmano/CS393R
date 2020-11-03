@@ -34,6 +34,7 @@
 
 #include "vector_map/vector_map.h"
 #include "shared/global_utils.h"
+#include <limits>
 
 using namespace math_util;
 using Eigen::Affine2f;
@@ -107,6 +108,9 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
 
   poses_.push_back(predicted_pose);
   prev_scan_ = curr_scan;
+  prev_odom_angle_ = curr_odom_angle_;
+  prev_odom_loc_ = curr_odom_loc_;
+
   cout << "Observe laser done." << endl;
 
 }
@@ -120,6 +124,7 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
      //       Unless the odomery noise is very high, it is negligelbe sinse the
      //       car only had 20ms to move.
      poses_.push_back(PoseSE2(odom_loc, odom_angle));
+     poses_.back().pprint("--> Init Pose: ");
      return;
    }
     /*if ((odom_loc - prev_odom_loc_).norm() < 0.0005) {
@@ -135,9 +140,12 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
             d_angle > params_.update_tresh_angle) {
        delta_T_ = PoseSE2(d_loc, d_angle);
        time_to_update_ = true;
-       prev_odom_angle_ = odom_angle;
-       prev_odom_loc_ = odom_loc;
+       curr_odom_loc_ = odom_loc;
+       curr_odom_angle_ = odom_angle;
+       cout << "curr odom: (" << prev_odom_loc_.x() << ","
+            << prev_odom_loc_.y() << ")  a:" << odom_angle << endl;
     }
+
     // Keep track of odometry to estimate how far the robot has moved between
     // poses.
 }
@@ -158,14 +166,13 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
             prev_scan_,
             params_.sigma_rasterizer);
 
-    float scale_factor = 2;
     float x_start,x_end,
           y_start,y_end,
           theta_start,theta_end;
 
     curr_pose_mean.pprint("   odom est pose:");
-
-    CalcCSMCube(scale_factor,
+    float scale_factor = 4;
+     CalcCSMCube(scale_factor,
                 curr_pose_mean,
                 x_start, y_start, theta_start,
                 x_end, y_end, theta_end);
@@ -174,21 +181,26 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
             " ang x:" << theta_start << " end ang:" << theta_end << endl;
     float y_step = (y_end-y_start)/params_.linspace_cube;
     float x_step = (x_end-x_start)/params_.linspace_cube;
-    float theta_step = (theta_end-theta_start)/params_.linspace_cube;
+    float theta_step = fabs((theta_end-theta_start))/params_.linspace_cube;
 
     float x_t = x_start;
-    float y_t = y_start;
-    float theta_t = theta_start;
     PoseSE2 mle_pose = curr_pose_mean;
-    float max_posterior_prob = 0;
+    float max_posterior_prob = std::numeric_limits<float>::lowest();
 
-    cout << "   start going over voxels..." << endl;
+    cout << "   start going over voxels...x_step y_step theta_step" << x_step
+                << y_step << theta_step <<  endl;
     for (int i = 0; i <= params_.linspace_cube; ++i) {
+        float y_t = y_start;
         for (int j = 0; j <=  params_.linspace_cube; ++j) {
+            float theta_t = theta_start;
             for (int k = 0; k <=  params_.linspace_cube; ++k) {
+
                  Vector2f loc_t(x_t,y_t);
-                 PoseSE2 candidate_d_T(loc_t-prev_pose.loc,theta_t-prev_pose.angle);
-                 PoseSE2 candidate_pose = prev_pose + candidate_d_T;
+                 //PoseSE2 candidate_d_T(loc_t-prev_pose.loc,theta_t-prev_pose.angle);
+                 //PoseSE2 candidate_pose = prev_pose + candidate_d_T;
+                 PoseSE2 candidate_d_T(loc_t-prev_odom_loc_,theta_t-prev_odom_angle_);
+                 PoseSE2 candidate_pose = PoseSE2(prev_odom_loc_, prev_odom_angle_)
+                                          + candidate_d_T;
                  tf::transform_points_to_loc_frame(candidate_d_T,
                                                    curr_scan,
                                                    transposed_curr_scan);
@@ -236,18 +248,23 @@ float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
 
   float sigma_theta = params_.k_3*delta_T_.loc.norm()
                             + params_.k_4*fabs(delta_T_.angle);
+  cout << "sigma x_y" << sigma_x_y << endl;
+  cout << "sigma theta" << sigma_theta << endl;
 
   Eigen::Vector3f sigmas(sigma_x_y, sigma_x_y, sigma_theta);
   auto mat = sigmas.asDiagonal();
   
   // calculate probability of predicted pose given mean pose
   vector<float> llh = loglikelihood_3d_mvn(proposed_p_list, mean_p, mat);
-  float motion_prob = std::accumulate(llh.begin(), llh.end(), 0);
+  float motion_prob = std::accumulate(llh.begin(), llh.end(), 0.0f);
 
+  //transform(obs_prob.begin(), obs_prob.end(), obs_prob.begin(), [motion_prob](float &c){ return c + motion_prob; });
+  cout << "     ---> Accumulate prob:"
+       <<  std::accumulate(obs_prob.begin(), obs_prob.end(),0.0f)
+       << "motion_prob:" << motion_prob;
   // observation model * motion model
-  transform(obs_prob.begin(), obs_prob.end(), obs_prob.begin(), [motion_prob](float &c){ return c + motion_prob; });
+  return std::accumulate(obs_prob.begin(), obs_prob.end(), 0.0f) + motion_prob;
 
-  return std::accumulate(obs_prob.begin(), obs_prob.end(), 0); 
 }
 
 void SLAM::CalcCSMCube(float scale_factor,
@@ -272,10 +289,10 @@ void SLAM::CalcCSMCube(float scale_factor,
 
     start_x = curr_pose_mean.loc.x() - scale_factor*sigma_x_y;
     start_y = curr_pose_mean.loc.y() - scale_factor*sigma_x_y;
-    start_theta = curr_pose_mean.angle - 10*scale_factor*sigma_theta;
+    start_theta = curr_pose_mean.angle - scale_factor*sigma_theta;
     end_x = curr_pose_mean.loc.x() + scale_factor*sigma_x_y;
     end_y = curr_pose_mean.loc.y() + scale_factor*sigma_x_y;
-    end_theta = curr_pose_mean.angle + 10*scale_factor*sigma_theta;
+    end_theta = curr_pose_mean.angle + scale_factor*sigma_theta;
 }
 
 }  // namespace slam
