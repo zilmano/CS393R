@@ -59,8 +59,13 @@ SLAM::SLAM() :
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
   // Return the latest pose estimate of the robot.
-  *loc = Vector2f(0, 0);
-  *angle = 0;
+  if (!poses_.empty()) {
+    *loc = poses_.back().loc;
+    *angle = poses_.back().angle;
+  } else {
+    *loc = Vector2f(0, 0);
+    *angle = 0;
+  }
 }
 
 void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
