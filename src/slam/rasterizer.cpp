@@ -36,7 +36,7 @@ void Rasterizer::update_grid_dim(const std::vector<Vector2f> &pts) {
 void Rasterizer::draw_point(const std::vector<Vector2f> &pts, Matrix2f & sigma) {
     Eigen::EigenSolver<Matrix2f> dec{sigma};
     float radius = sqrt(5 * dec.eigenvalues().cwiseAbs().eval().maxCoeff());
-    std::cout << radius << std::endl;
+    //std::cout << radius << std::endl;
     std::vector<Vector2f> coords;
     coords.reserve(res_x * res_y);
     for (auto & p : pts) {
@@ -65,11 +65,14 @@ inline Vector2f Rasterizer::coor2idx(const Vector2f &coor) {
     return Vector2f{diff[0] / step_x, diff[1] / step_y};
 }
 
-decltype(Rasterizer::image) & Rasterizer::rasterize(std::vector<Vector2f> &pts, Matrix2f & sigma) {
+decltype(Rasterizer::image) & Rasterizer::rasterize(std::vector<Vector2f> &pts,
+                                                    Matrix2f & sigma,
+                                                    bool imshow) {
     image.setZero();
     update_grid_dim(pts);
     draw_point(pts, sigma);
-    normalized_imshow(Eigen::MatrixXf(image.exp().matrix()));
+    if (imshow)
+        normalized_imshow(Eigen::MatrixXf(image.exp().matrix()));
     return image;
 }
 

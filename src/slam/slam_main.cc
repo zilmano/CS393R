@@ -155,6 +155,16 @@ int main(int argc, char** argv) {
       sigma << 1.75e-3, 1e-3, 1e-3, 1.75e-3;
       rast.rasterize(pts, sigma);*/
 
+  // Set SLAM params
+  slam::SlamParams& params = slam_.getParams();
+  params.lidar_range_cutoff = 6;
+  params.k_2 = 0.2;
+  params.k_4 = 0.1;
+  params.k_3 = 0.02;
+  params.radar_downsample_rate = 10;
+  params.sigma_rasterizer <<  0.5, 0.25, 0.25, 0.5;
+
+
   // Initialize ROS.
   ros::init(argc, argv, "slam");
   ros::NodeHandle n;

@@ -67,22 +67,42 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
   // A new laser scan has been observed. Decide whether to add it as a pose
   // for SLAM. If decided to add, align it to the scan from the last saved pose,
   // and save both the scan and the optimized pose.
+  static vector<Vector2f> curr_scan;
+  static vector<Vector2f> curr_scan_map_frame;
+
+  if (prev_scan_.empty()) {
+      tf::proj_lidar_2_pts(msg, curr_scan,
+                           CarDims::kLaserLoc,
+                           params_.radar_downsample_rate,
+                           true,
+                           params_.lidar_range_cutoff);
+      prev_scan_ = curr_scan;
+      return;
+  }
   if (!time_to_update_)
       return;
 
+  cout << " ---- observe laser, time to update!" << endl;
+  delta_T_.pprint("delta_T:");
+
   time_to_update_ = false;
-  static vector<Vector2f> curr_scan;
-  static vector<Vector2f> curr_scan_map_frame;
   tf::proj_lidar_2_pts(msg, curr_scan,
                        CarDims::kLaserLoc,
-                       params_.radar_downsample_rate);
-
+                       params_.radar_downsample_rate,
+                       true,
+                       params_.lidar_range_cutoff);
+  cout << "curr_scan_size:" << curr_scan.size() << endl;
   PoseSE2 predicted_pose = ExecCSM(curr_scan);
+  predicted_pose.pprint("ExecCSM: predicted pose:");
+  cout << "transform to global frame and add to map " << endl;
   tf::transform_points_to_glob_frame(predicted_pose, curr_scan, curr_scan_map_frame);
-  map_.insert(std::end(curr_scan_map_frame),std::begin(map_),std::end(map_));
+  cout << "Transfrmed scan size:" << curr_scan_map_frame.size() << endl;
+  map_.insert(std::end(map_),std::begin(curr_scan_map_frame),std::end(curr_scan_map_frame));
+  cout << "new map size:" << map_.size()<<endl;
 
   poses_.push_back(predicted_pose);
   prev_scan_ = curr_scan;
+  cout << "Observe laser done." << endl;
 
 }
 
@@ -91,9 +111,12 @@ void SLAM::ObserveOdometry(const Vector2f& odom_loc, const float odom_angle) {
      prev_odom_angle_ = odom_angle;
      prev_odom_loc_ = odom_loc;
      odom_initialized_ = true;
+     // Oleg: There is going to be a small error here due to odomentry noise.
+     //       Unless the odomery noise is very high, it is negligelbe sinse the
+     //       car only had 20ms to move.
+     poses_.push_back(PoseSE2(odom_loc, odom_angle));
      return;
    }
-
     /*if ((odom_loc - prev_odom_loc_).norm() < 0.0005) {
       car_moving_ = false;
     } else {
@@ -126,7 +149,7 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     PoseSE2 prev_pose  = poses_.back();
     PoseSE2 curr_pose_mean = prev_pose + delta_T_;
 
-    Eigen::ArrayXXf lookup_table = rasterizer_.rasterize(
+    rasterizer_.rasterize(
             prev_scan_,
             params_.sigma_rasterizer);
 
@@ -135,11 +158,15 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
           y_start,y_end,
           theta_start,theta_end;
 
+    curr_pose_mean.pprint("   odom est pose:");
+
     CalcCSMCube(scale_factor,
                 curr_pose_mean,
                 x_start, y_start, theta_start,
                 x_end, y_end, theta_end);
-
+    cout << "   CUBE dims start x:" << x_start << " end x:" << x_end <<
+            " start y:" << y_start << " end y:" << y_end <<
+            " ang x:" << theta_start << " end ang:" << theta_end << endl;
     float y_step = (y_end-y_start)/params_.linspace_cube;
     float x_step = (x_end-x_start)/params_.linspace_cube;
     float theta_step = (theta_end-theta_start)/params_.linspace_cube;
@@ -149,6 +176,8 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     float theta_t = theta_start;
     PoseSE2 mle_pose = curr_pose_mean;
     float max_posterior_prob = 0;
+
+    cout << "   start going over voxels..." << endl;
     for (int i = 0; i <= params_.linspace_cube; ++i) {
         for (int j = 0; j <=  params_.linspace_cube; ++j) {
             for (int k = 0; k <=  params_.linspace_cube; ++k) {
@@ -172,7 +201,7 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
         }
         x_t += x_step;
     }
-
+    cout << "   done " << endl;
     return mle_pose;
 }
 

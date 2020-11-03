@@ -24,7 +24,9 @@ private:
 
 public:
     Rasterizer(int res_x, int res_y);
-    decltype(image) & rasterize(std::vector<Vector2f> & pts, Matrix2f & sigma);
+    decltype(image) & rasterize(std::vector<Vector2f> & pts,
+                                Matrix2f & sigma,
+                                bool imshow=false);
     std::vector<float> query(const std::vector<Vector2f> & pts);
 };
 

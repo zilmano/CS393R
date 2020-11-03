@@ -39,6 +39,7 @@ namespace debug {
     void inline print_loc(const Eigen::Vector2f& loc,std::string prefix = "") {
             std::cout << prefix << " (" << loc.x() << "," << loc.y() << ")" << std::endl;
         }
+
 }
 
 namespace visualization {
@@ -87,6 +88,12 @@ namespace navigation {
                 this->loc += rhs.loc;
                 this->angle += rhs.angle;
                 return *this;
+            }
+
+            void pprint(std::string prefix="Pose:") {
+
+                std::cout << prefix << " (" << loc.x() << "," << loc.y() << ")"
+                           << " a:" << angle  << std::endl;
             }
     };
 
@@ -271,10 +278,14 @@ namespace tf {
     inline void proj_lidar_2_pts(const sensor_msgs::LaserScan& msg,
                                  std::vector<Eigen::Vector2f>& point_cloud,
                                  const Eigen::Vector2f& kLaserLoc,
-                                 unsigned int n, bool filter_max_range=false) {
+                                 unsigned int n, bool filter_max_range=false,
+                                 float max_range=-1) {
 
       unsigned int num_ranges;
       float angle_max_true;
+      if (max_range < 0)
+          max_range = msg.range_max-PhysicsConsts::radar_noise_std;
+
       if (n != 1) {
           unsigned int downsample_truncated_pts = ((msg.ranges.size()-1)%n);
           //cout << "downsample_truncated_pts:" << downsample_truncated_pts;
@@ -303,7 +314,7 @@ namespace tf {
         float curr_range = downsampled_ranges[i];
         if (curr_range >= msg.range_min && curr_range <= msg.range_max) {
           if (!filter_max_range ||
-              curr_range <= (msg.range_max-PhysicsConsts::radar_noise_std)) {
+              curr_range <= (max_range)) {
             float x = cos(curr_laser_angle)*curr_range;
             float y = sin(curr_laser_angle)*curr_range;
             Eigen::Vector2f baselink_loc(Eigen::Vector2f(x,y) + kLaserLoc);

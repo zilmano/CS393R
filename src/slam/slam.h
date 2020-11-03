@@ -41,7 +41,8 @@ struct SlamParams {
                             k_1(1), k_2(1), k_3(0.3), k_4(1),
                             update_tresh_angle(M_PI/3),
                             update_tresh_dist(0.5),
-                            linspace_cube(20){
+                            linspace_cube(20),
+                            lidar_range_cutoff(5){
         sigma_rasterizer <<  1.75e-3, 1e-3, 1e-3, 1.75e-3;
     }
     unsigned int radar_downsample_rate;
@@ -56,6 +57,7 @@ struct SlamParams {
     float update_tresh_angle;
     float update_tresh_dist;
     float linspace_cube;
+    float lidar_range_cutoff;
     Eigen::Matrix2f sigma_rasterizer;
     //float sigma_obs;
     //float gamma;
@@ -86,6 +88,10 @@ class SLAM {
                     PoseSE2 proposed_pose,
                     PoseSE2 mean_pose);
   //float LocProbMotionModel(const Eigen::Vector2f& loc,const PoseSE2& mean, Eigen::Matrix3f cov) {return 0;};
+
+ SlamParams& getParams() {
+     return params_;
+ };
 
  private:
   void CalcCSMCube(float scale_factor,
