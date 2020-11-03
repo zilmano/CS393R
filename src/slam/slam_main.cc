@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
   params.k_4 = 0.2;
   params.k_3 = 0.4;
   params.radar_downsample_rate = 10;
-  params.linspace_cube = 30;
+  params.linspace_cube = 4;
   params.sigma_rasterizer <<  100, 20, 20, 100;
 
 
