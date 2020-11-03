@@ -82,11 +82,10 @@ class SLAM {
 
   PoseSE2 ExecCSM(const std::vector<Eigen::Vector2f>& curr_scan_point_cloud);
 
-  float CalcPoseMLE(const Eigen::ArrayXXf& lookup_table,
-                    const std::vector<Eigen::Vector2f>& transposed_scan,
+  float CalcPoseMLE(const std::vector<Eigen::Vector2f>& transposed_scan,
                     PoseSE2 proposed_pose,
-                    PoseSE2 mean_pose) {return 0;};
-  float LocProbMotionModel(const Eigen::Vector2f& loc,const PoseSE2& mean, Eigen::Matrix3f cov) {return 0;};
+                    PoseSE2 mean_pose);
+  //float LocProbMotionModel(const Eigen::Vector2f& loc,const PoseSE2& mean, Eigen::Matrix3f cov) {return 0;};
 
  private:
   void CalcCSMCube(float scale_factor,

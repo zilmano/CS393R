@@ -29,7 +29,7 @@
 #include "shared/math/geometry.h"
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
-
+#include "2d_normal.h"
 #include "slam.h"
 
 #include "vector_map/vector_map.h"
@@ -159,8 +159,7 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
                                                    curr_scan,
                                                    transposed_curr_scan);
 
-                 float posterior_prob = CalcPoseMLE(lookup_table,
-                                                    transposed_curr_scan,
+                 float posterior_prob = CalcPoseMLE(transposed_curr_scan,
                                                     candidate_pose,
                                                     curr_pose_mean);
                  if (posterior_prob > max_posterior_prob) {
@@ -175,6 +174,46 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     }
 
     return mle_pose;
+}
+
+float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
+                    PoseSE2 proposed_pose,
+                    PoseSE2 mean_pose) {
+  // Get list of probabilities of each laser point based on rasterized image
+  vector<float> obs_prob = rasterizer_.query(transposed_scan);
+
+  // proposed pose
+  float prop_x = proposed_pose.loc.x();
+  float prop_y = proposed_pose.loc.y();
+  float prop_ang = proposed_pose.angle;
+  Eigen::Vector3f proposed_p(prop_x,prop_y,prop_ang);
+  vector<Eigen::Vector3f> proposed_p_list;
+  proposed_p_list.push_back(proposed_p);
+
+  // mean pose
+  float mean_x = mean_pose.loc.x();
+  float mean_y = mean_pose.loc.y();
+  float mean_ang = mean_pose.angle;
+  Eigen::Vector3f mean_p(mean_x,mean_y,mean_ang);
+
+  // covariance
+  float sigma_x_y = params_.k_1*delta_T_.loc.norm()
+                         + params_.k_2*fabs(delta_T_.angle);
+
+  float sigma_theta = params_.k_3*delta_T_.loc.norm()
+                            + params_.k_4*fabs(delta_T_.angle);
+
+  Eigen::Vector3f sigmas(sigma_x_y, sigma_x_y, sigma_theta);
+  auto mat = sigmas.asDiagonal();
+  
+  // calculate probability of predicted pose given mean pose
+  vector<float> llh = loglikelihood_3d_mvn(proposed_p_list, mean_p, mat);
+  float motion_prob = std::accumulate(llh.begin(), llh.end(), 0);
+
+  // observation model * motion model
+  transform(obs_prob.begin(), obs_prob.end(), obs_prob.begin(), [motion_prob](float &c){ return c*motion_prob; });
+
+  return std::accumulate(obs_prob.begin(), obs_prob.end(), 0); 
 }
 
 void SLAM::CalcCSMCube(float scale_factor,

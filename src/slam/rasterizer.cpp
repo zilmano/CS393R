@@ -2,8 +2,8 @@
 // Created by liyanc on 10/31/20.
 //
 
-#include "rasterizer.h"
 #include "2d_normal.h"
+#include "rasterizer.h"
 #include <eigen3/Eigen/Eigenvalues>
 
 #include "cvshow.h"
@@ -73,7 +73,7 @@ decltype(Rasterizer::image) & Rasterizer::rasterize(std::vector<Vector2f> &pts, 
     return image;
 }
 
-std::vector<float> Rasterizer::query(std::vector<Vector2f> &pts) {
+std::vector<float> Rasterizer::query(const std::vector<Vector2f> &pts) {
     std::vector<float> res;
     res.reserve(pts.size());
     for (auto & pt : pts) {

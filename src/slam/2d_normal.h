@@ -14,7 +14,7 @@ using Eigen::Vector3f;
 using Eigen::Matrix2f;
 using Eigen::Matrix3f;
 
-std::vector<float> loglikelihood_mvn(const std::vector<Vector2f> & x, const Vector2f & mu, const Matrix2f & sigma) {
+inline std::vector<float> loglikelihood_mvn(const std::vector<Vector2f> & x, const Vector2f & mu, const Matrix2f & sigma) {
     Matrix2f precision = sigma.inverse();
     Eigen::CompleteOrthogonalDecomposition<Matrix2f> dec{sigma};
     float logabsdet = dec.logAbsDeterminant();
@@ -30,7 +30,7 @@ std::vector<float> loglikelihood_mvn(const std::vector<Vector2f> & x, const Vect
     return res;
 }
 
-std::vector<float> loglikelihood_3d_mvn(const std::vector<Vector3f> & x, const Vector3f & mu, const Matrix3f & sigma) {
+inline std::vector<float> loglikelihood_3d_mvn(const std::vector<Vector3f> & x, const Vector3f & mu, const Matrix3f & sigma) {
     Matrix3f precision = sigma.inverse();
     Eigen::CompleteOrthogonalDecomposition<Matrix3f> dec{sigma};
     float logabsdet = dec.logAbsDeterminant();
@@ -46,7 +46,7 @@ std::vector<float> loglikelihood_3d_mvn(const std::vector<Vector3f> & x, const V
     return res;
 }
 
-std::vector<float> unnormalized_mvn(const std::vector<Vector2f> & x, const Vector2f & mu, const Matrix2f & sigma) {
+inline std::vector<float> unnormalized_mvn(const std::vector<Vector2f> & x, const Vector2f & mu, const Matrix2f & sigma) {
     Matrix2f precision = sigma.inverse();
 
     std::vector<float> res;
