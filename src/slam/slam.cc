@@ -159,6 +159,7 @@ vector<Vector2f> SLAM::GetMap() {
 
 PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     static vector<Vector2f> transposed_curr_scan;
+    static vector<Vector2f> backproj_scan;
     PoseSE2 prev_pose  = poses_.back();
     PoseSE2 curr_pose_mean = prev_pose + delta_T_;
 
@@ -201,11 +202,11 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
                  PoseSE2 candidate_d_T(loc_t-prev_odom_loc_,theta_t-prev_odom_angle_);
                  PoseSE2 candidate_pose = PoseSE2(prev_odom_loc_, prev_odom_angle_)
                                           + candidate_d_T;
-                 tf::transform_points_to_loc_frame(candidate_d_T,
-                                                   curr_scan,
-                                                   transposed_curr_scan);
+                 tf::transform_points_to_glob_frame(candidate_pose, curr_scan, transposed_curr_scan);
+                 tf::transform_points_to_loc_frame(PoseSE2(prev_odom_loc_, prev_odom_angle_),
+                                                   transposed_curr_scan,backproj_scan);
 
-                 float posterior_prob = CalcPoseMLE(transposed_curr_scan,
+                 float posterior_prob = CalcPoseMLE(backproj_scan,
                                                     candidate_pose,
                                                     curr_pose_mean);
                  if (posterior_prob > max_posterior_prob) {
@@ -258,11 +259,6 @@ float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
   vector<float> llh = loglikelihood_3d_mvn(proposed_p_list, mean_p, mat);
   float motion_prob = std::accumulate(llh.begin(), llh.end(), 0.0f);
 
-  //transform(obs_prob.begin(), obs_prob.end(), obs_prob.begin(), [motion_prob](float &c){ return c + motion_prob; });
-  cout << "     ---> Accumulate prob:"
-       <<  std::accumulate(obs_prob.begin(), obs_prob.end(),0.0f)
-       << "motion_prob:" << motion_prob;
-  // observation model * motion model
   return std::accumulate(obs_prob.begin(), obs_prob.end(), 0.0f) + motion_prob;
 
 }
