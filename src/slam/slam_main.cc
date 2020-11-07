@@ -143,19 +143,6 @@ void OdometryCallback(const nav_msgs::Odometry& msg) {
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
 
-  //example rasteriztion table making
-
-  /*Rasterizer rast{256, 256};
-      std::vector<Vector2f> pts{{1.0, 1.0}, {1.0, 1.3}, {1.0, 1.5}, {1.0, 1.7}, {1.0, 1.9},
-                                {1.3, 1.0}, {1.5, 1.0}, {1.7, 1.0}, {1.9, 1.0}, {1.9, 1.2},
-                                {1.9, 1.4}, {1.9, 1.6}, {1.9, 1.8}, {1.9, 2.0}, {2.1, 2.0},
-                                {2.3, 2.0}, {2.5, 2.0}, {2.7, 2.0}, {2.9, 2.0}, {2.9, 2.5},
-                                {2.9, 3.0}};
-      Matrix2f sigma;
-      sigma << 1.75e-3, 1e-3, 1e-3, 1.75e-3;
-      rast.rasterize(pts, sigma);*/
-
-  // Set SLAM params
   slam::SlamParams& params = slam_.getParams();
   params.lidar_range_cutoff = 6;
   params.k_1 = 1;
@@ -163,9 +150,10 @@ int main(int argc, char** argv) {
   params.k_4 = 0.2;
   params.k_3 = 0.4;
   params.radar_downsample_rate = 10;
-  params.linspace_cube = 4;
-  params.sigma_rasterizer <<  100, 20, 20, 100;
-
+  params.linspace_cube = 36;
+  // Why do you ever want radius for points at 24m while gaps are around 0.01m?????
+  //params.sigma_rasterizer <<  100, 20, 20, 100;
+  params.sigma_rasterizer << 5e-2, 0, 0, 5e-2;
 
   // Initialize ROS.
   ros::init(argc, argv, "slam");

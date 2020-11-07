@@ -30,6 +30,7 @@
 #include "shared/math/math_util.h"
 #include "shared/util/timer.h"
 #include "2d_normal.h"
+#include "cvshow.h"
 #include "slam.h"
 
 #include "vector_map/vector_map.h"
@@ -165,9 +166,12 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     PoseSE2 prev_pose  = poses_.back();
     PoseSE2 curr_pose_mean = prev_pose + delta_T_;
 
-    rasterizer_.rasterize(
+    auto img = rasterizer_.rasterize(
             prev_scan_,
             params_.sigma_rasterizer);
+
+    //normalized_imshow(Eigen::exp(img));
+    //cv::waitKey(0);
 
     float x_start,x_end,
           y_start,y_end,
@@ -193,11 +197,11 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     cout << "   start going over voxels...x_step y_step theta_step" << x_step
                 << y_step << theta_step <<  endl;
 
-    std::vector<PoseSE2> candidate_back_trans;
+    std::vector<Vector3f> candidate_trans;
     std::vector<PoseSE2> candidate_poses;
     std::vector<float> candidate_motion_likelihood;
     std::vector<float> candidate_observ_likelihood;
-    candidate_back_trans.reserve(params_.linspace_cube * params_.linspace_cube * params_.linspace_cube);
+    candidate_trans.reserve(params_.linspace_cube * params_.linspace_cube * params_.linspace_cube);
     candidate_poses.reserve(params_.linspace_cube * params_.linspace_cube * params_.linspace_cube);
 
     //Propose candidates
@@ -208,7 +212,8 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
             float theta_t = theta_start;
             for (uint k = 0; k < params_.linspace_cube; ++k) {
                 Vector2f proposed_loc(x_t,y_t);
-                candidate_back_trans.emplace_back(prev_odom_loc_ - proposed_loc, prev_odom_angle_ - theta_t);
+                Vector2f trans_t = Eigen::Rotation2Df(-poses_.back().angle) * (proposed_loc - poses_.back().loc);
+                candidate_trans.emplace_back(trans_t(0), trans_t(1), theta_t - poses_.back().angle);
                 candidate_poses.emplace_back(proposed_loc, theta_t);
                 theta_t += theta_step;
             }
@@ -235,10 +240,19 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
             {curr_pose_mean.loc[0], curr_pose_mean.loc[1], curr_pose_mean.angle}, mat);
 
     //Observation model
-    for (auto & bt : candidate_back_trans){
-        tf::transform_points_to_loc_frame(bt, curr_scan, transposed_curr_scan);
+    //uint idx = 0;
+    for (auto & bt : candidate_trans){
+        Eigen::Rotation2Df rot(bt(2));
+        Vector2f trans(bt(0), bt(1));
+        transposed_curr_scan.clear();
+        for (auto & pt : curr_scan) transposed_curr_scan.emplace_back(rot * pt + trans);
         auto obsrv_ll = rasterizer_.query(transposed_curr_scan);
-        candidate_observ_likelihood.emplace_back(std::accumulate(obsrv_ll.begin(), obsrv_ll.end(), 0.0f));
+        //normalized_imwrite(rasterizer_.get_qry_history(), cv::format("query_img/%d.png", idx++));
+        rasterizer_.get_qry_history(true);
+        float inv_lambda = params_.observ_lambda_frac / obsrv_ll.size();
+        inv_lambda = (inv_lambda < 0.5)?inv_lambda:0.5;
+        candidate_observ_likelihood.emplace_back(
+                inv_lambda * std::accumulate(obsrv_ll.begin(), obsrv_ll.end(), 0.0f));
     }
 
     //Build voxels and mle
@@ -258,7 +272,7 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
 
                 if (loglikelihood > max_posterior_prob) {
                     max_posterior_prob = loglikelihood;
-                    mle_pose = PoseSE2{{x_t, y_t}, theta_t};
+                    mle_pose = PoseSE2{x_t, y_t, theta_t};
                 }
 
                 motion_iter++;
@@ -270,6 +284,13 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
         x_t += x_step;
     }
 
+    /*
+    normalized_imshow(Eigen::exp(img));
+    normalized_voxelshow(motion_voxel_, "motion_voxel");
+    normalized_voxelshow(observ_voxel_, "observ_voxel");
+    normalized_voxelshow(voxels_, "voxels");
+    cv::waitKey(0);
+     */
     return mle_pose;
 }
 

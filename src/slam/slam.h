@@ -39,11 +39,12 @@ namespace slam {
 struct SlamParams {
     explicit SlamParams(): radar_downsample_rate(1),
                             k_1(1), k_2(1), k_3(0.3), k_4(1),
+                            observ_lambda_frac(10),
                             update_tresh_angle(M_PI/3),
                             update_tresh_dist(0.5),
-                            linspace_cube(20),
+                            linspace_cube(36),
                             lidar_range_cutoff(5){
-        sigma_rasterizer <<  1.75e-3, 1e-3, 1e-3, 1.75e-3;
+        sigma_rasterizer <<  1e-4, 0, 1e-4, 0;
     }
     unsigned int radar_downsample_rate;
     //unsigned int resample_n_step;
@@ -54,6 +55,7 @@ struct SlamParams {
     float k_2;
     float k_3;
     float k_4;
+    float observ_lambda_frac;
     float update_tresh_angle;
     float update_tresh_dist;
     uint linspace_cube;

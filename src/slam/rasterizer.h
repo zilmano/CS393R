@@ -13,9 +13,10 @@ using Eigen::Matrix2f;
 
 class Rasterizer {
 private:
-    Eigen::ArrayXXf image;
+    Eigen::ArrayXXf image, qry_img;
     float min_x, max_x, step_x, min_y, max_y, step_y;
     int res_x, res_y;
+    const float epsilon=1e-12;
 
     void update_grid_dim(const std::vector<Vector2f> & pts);
     void draw_point(const std::vector<Vector2f> & pts, Matrix2f & sigma);
@@ -28,6 +29,7 @@ public:
                                 Matrix2f & sigma,
                                 bool imshow=false);
     std::vector<float> query(const std::vector<Vector2f> & pts);
+    decltype(qry_img) & get_qry_history(bool reset=false);
 };
 
 
