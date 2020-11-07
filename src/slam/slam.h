@@ -56,7 +56,7 @@ struct SlamParams {
     float k_4;
     float update_tresh_angle;
     float update_tresh_dist;
-    float linspace_cube;
+    uint linspace_cube;
     float lidar_range_cutoff;
     Eigen::Matrix2f sigma_rasterizer;
     //float sigma_obs;
@@ -123,6 +123,10 @@ class SLAM {
 
   Rasterizer rasterizer_;
   SlamParams params_;
+  std::vector<Eigen::ArrayXXf> voxels_;
+  std::vector<Eigen::ArrayXXf> motion_voxel_;
+  std::vector<Eigen::ArrayXXf> observ_voxel_;
+
 };
 }  // namespace slam
 

@@ -56,7 +56,10 @@ SLAM::SLAM() :
     prev_odom_angle_(0),
     odom_initialized_(false),
     time_to_update_(false),
-    rasterizer_{256, 256}{}
+    rasterizer_{256, 256},
+    voxels_{params_.linspace_cube, {params_.linspace_cube, params_.linspace_cube}},
+    motion_voxel_{params_.linspace_cube, {params_.linspace_cube, params_.linspace_cube}},
+    observ_voxel_{params_.linspace_cube, {params_.linspace_cube, params_.linspace_cube}}{}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
   // Return the latest pose estimate of the robot.
@@ -189,82 +192,85 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
 
     cout << "   start going over voxels...x_step y_step theta_step" << x_step
                 << y_step << theta_step <<  endl;
-    for (int i = 0; i <= params_.linspace_cube; ++i) {
+
+    std::vector<PoseSE2> candidate_back_trans;
+    std::vector<PoseSE2> candidate_poses;
+    std::vector<float> candidate_motion_likelihood;
+    std::vector<float> candidate_observ_likelihood;
+    candidate_back_trans.reserve(params_.linspace_cube * params_.linspace_cube * params_.linspace_cube);
+    candidate_poses.reserve(params_.linspace_cube * params_.linspace_cube * params_.linspace_cube);
+
+    //Propose candidates
+    x_t = x_start;
+    for (uint i = 0; i < params_.linspace_cube; ++i) {
         float y_t = y_start;
-        for (int j = 0; j <=  params_.linspace_cube; ++j) {
+        for (uint j = 0; j < params_.linspace_cube; ++j) {
             float theta_t = theta_start;
-            for (int k = 0; k <=  params_.linspace_cube; ++k) {
-
-                 Vector2f loc_t(x_t,y_t);
-                 //PoseSE2 candidate_d_T(loc_t-prev_pose.loc,theta_t-prev_pose.angle);
-                 //PoseSE2 candidate_pose = prev_pose + candidate_d_T;
-                 PoseSE2 candidate_d_T(loc_t-prev_odom_loc_,theta_t-prev_odom_angle_);
-                 PoseSE2 candidate_pose = PoseSE2(prev_odom_loc_, prev_odom_angle_)
-                                          + candidate_d_T;
-                 tf::transform_points_to_loc_frame(candidate_d_T,
-                                                   curr_scan,
-                                                   transposed_curr_scan);
-
-                 float posterior_prob = CalcPoseMLE(transposed_curr_scan,
-                                                    candidate_pose,
-                                                    curr_pose_mean);
-                 if (posterior_prob > max_posterior_prob) {
-                     max_posterior_prob = posterior_prob;
-                     mle_pose = PoseSE2(x_t,y_t,theta_t);
-                 }
-                 theta_t += theta_step;
+            for (uint k = 0; k < params_.linspace_cube; ++k) {
+                Vector2f proposed_loc(x_t,y_t);
+                candidate_back_trans.emplace_back(prev_odom_loc_ - proposed_loc, prev_odom_angle_ - theta_t);
+                candidate_poses.emplace_back(proposed_loc, theta_t);
+                theta_t += theta_step;
             }
             y_t += y_step;
         }
         x_t += x_step;
     }
-    cout << "   done " << endl;
+
+    //Motion model
+    float sigma_x_y = params_.k_1*delta_T_.loc.norm()
+                      + params_.k_2*fabs(delta_T_.angle);
+    float sigma_theta = params_.k_3*delta_T_.loc.norm()
+                        + params_.k_4*fabs(delta_T_.angle);
+    cout << "sigma x_y" << sigma_x_y << endl;
+    cout << "sigma theta" << sigma_theta << endl;
+    Eigen::Vector3f sigmas(sigma_x_y, sigma_x_y, sigma_theta);
+    auto mat = sigmas.asDiagonal();
+
+    std::vector<Vector3f> proposed_p_list;
+    proposed_p_list.reserve(candidate_poses.size());
+    for (auto & p : candidate_poses)
+        proposed_p_list.emplace_back(p.loc[0], p.loc[1], p.angle);
+    candidate_motion_likelihood = loglikelihood_3d_mvn(proposed_p_list,
+            {curr_pose_mean.loc[0], curr_pose_mean.loc[1], curr_pose_mean.angle}, mat);
+
+    //Observation model
+    for (auto & bt : candidate_back_trans){
+        tf::transform_points_to_loc_frame(bt, curr_scan, transposed_curr_scan);
+        auto obsrv_ll = rasterizer_.query(transposed_curr_scan);
+        candidate_observ_likelihood.emplace_back(std::accumulate(obsrv_ll.begin(), obsrv_ll.end(), 0.0f));
+    }
+
+    //Build voxels and mle
+    auto motion_iter = candidate_motion_likelihood.begin();
+    auto observ_iter = candidate_observ_likelihood.begin();
+
+    x_t = x_start;
+    for (uint i = 0; i < params_.linspace_cube; ++i) {
+        float y_t = y_start;
+        for (uint j = 0; j < params_.linspace_cube; ++j) {
+            float theta_t = theta_start;
+            for (uint k = 0; k < params_.linspace_cube; ++k) {
+                float loglikelihood = (*motion_iter) + (*observ_iter);
+                voxels_[i](j, k) = loglikelihood;
+                motion_voxel_[i](j, k) = *motion_iter;
+                observ_voxel_[i](j, k) = *observ_iter;
+
+                if (loglikelihood > max_posterior_prob) {
+                    max_posterior_prob = loglikelihood;
+                    mle_pose = PoseSE2{{x_t, y_t}, theta_t};
+                }
+
+                motion_iter++;
+                observ_iter++;
+                theta_t += theta_step;
+            }
+            y_t += y_step;
+        }
+        x_t += x_step;
+    }
+
     return mle_pose;
-}
-
-float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
-                    PoseSE2 proposed_pose,
-                    PoseSE2 mean_pose) {
-  // Get list of probabilities of each laser point based on rasterized image
-  vector<float> obs_prob = rasterizer_.query(transposed_scan);
-
-  // proposed pose
-  float prop_x = proposed_pose.loc.x();
-  float prop_y = proposed_pose.loc.y();
-  float prop_ang = proposed_pose.angle;
-  Eigen::Vector3f proposed_p(prop_x,prop_y,prop_ang);
-  vector<Eigen::Vector3f> proposed_p_list;
-  proposed_p_list.push_back(proposed_p);
-
-  // mean pose
-  float mean_x = mean_pose.loc.x();
-  float mean_y = mean_pose.loc.y();
-  float mean_ang = mean_pose.angle;
-  Eigen::Vector3f mean_p(mean_x,mean_y,mean_ang);
-
-  // covariance
-  float sigma_x_y = params_.k_1*delta_T_.loc.norm()
-                         + params_.k_2*fabs(delta_T_.angle);
-
-  float sigma_theta = params_.k_3*delta_T_.loc.norm()
-                            + params_.k_4*fabs(delta_T_.angle);
-  cout << "sigma x_y" << sigma_x_y << endl;
-  cout << "sigma theta" << sigma_theta << endl;
-
-  Eigen::Vector3f sigmas(sigma_x_y, sigma_x_y, sigma_theta);
-  auto mat = sigmas.asDiagonal();
-  
-  // calculate probability of predicted pose given mean pose
-  vector<float> llh = loglikelihood_3d_mvn(proposed_p_list, mean_p, mat);
-  float motion_prob = std::accumulate(llh.begin(), llh.end(), 0.0f);
-
-  //transform(obs_prob.begin(), obs_prob.end(), obs_prob.begin(), [motion_prob](float &c){ return c + motion_prob; });
-  cout << "     ---> Accumulate prob:"
-       <<  std::accumulate(obs_prob.begin(), obs_prob.end(),0.0f)
-       << "motion_prob:" << motion_prob;
-  // observation model * motion model
-  return std::accumulate(obs_prob.begin(), obs_prob.end(), 0.0f) + motion_prob;
-
 }
 
 void SLAM::CalcCSMCube(float scale_factor,
