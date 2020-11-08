@@ -80,6 +80,7 @@ slam::SLAM slam_;
 ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 VisualizationMsg vis_msg_;
+VisualizationMsg vis_msg_local_;
 sensor_msgs::LaserScan last_laser_msg_;
 
 void InitializeMsgs() {
@@ -88,11 +89,12 @@ void InitializeMsgs() {
   header.seq = 0;
 
   vis_msg_ = visualization::NewVisualizationMessage("map", "slam");
+  vis_msg_local_ = visualization::NewVisualizationMessage("base_link", "slam");
 }
 
 void PublishMap() {
   static double t_last = 0;
-  if (GetMonotonicTime() - t_last < 0.5) {
+  if (GetMonotonicTime() - t_last < 10) {
     // Rate-limit visualization.
     return;
   }
@@ -103,7 +105,7 @@ void PublishMap() {
   const vector<Vector2f> map = slam_.GetMap();
   printf("Map: %lu points\n", map.size());
   for (const Vector2f& p : map) {
-    visualization::DrawPoint(p, 0xC0C0C0, vis_msg_);
+    visualization::DrawPoint(p, 0xC0C0C5, vis_msg_);
   }
   visualization_publisher_.publish(vis_msg_);
 }
@@ -116,6 +118,9 @@ void PublishPose() {
   localization_msg.pose.x = robot_loc.x();
   localization_msg.pose.y = robot_loc.y();
   localization_msg.pose.theta = robot_angle;
+  //ClearVisualizationMsg(vis_msg_);
+  //visualization::DrawCross(robot_loc, 0.5, 0xFF0000, vis_msg_);
+  //visualization_publisher_.publish(vis_msg_);
   localization_publisher_.publish(localization_msg);
 }
 
@@ -162,13 +167,13 @@ int main(int argc, char** argv) {
   params.k_2 = 0.1;
   params.k_4 = 0.2;
   params.k_3 = 0.4;
-  params.radar_downsample_rate = 10;
+  params.radar_downsample_rate = 5;
   params.linspace_cube = 36;
   params.sigma_rasterizer <<  5e-1, 0, 0, 5e-1;
-  params.update_tresh_angle = M_PI/10;
-  params.update_tresh_dist = 0.1;
+  params.update_tresh_angle = M_PI/3;
+  params.update_tresh_dist = 0.5;
 
-
+  slam_.SetRosHandleAndInitPubs(&visualization_publisher_,&vis_msg_local_);
   // Initialize ROS.
   ros::init(argc, argv, "slam");
   ros::NodeHandle n;

@@ -54,8 +54,12 @@ namespace slam {
 SLAM::SLAM() :
     prev_odom_loc_(0, 0),
     prev_odom_angle_(0),
+    curr_odom_loc_(0),
+    curr_odom_angle_(0),
     odom_initialized_(false),
     time_to_update_(false),
+    viz_pub_(NULL),
+    viz_msg_(NULL),
     rasterizer_{256, 256}{}
 
 void SLAM::GetPose(Eigen::Vector2f* loc, float* angle) const {
@@ -167,78 +171,94 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
             prev_scan_,
             params_.sigma_rasterizer);
 
-    float x_start,x_end,
-          y_start,y_end,
-          theta_start,theta_end;
-
     curr_pose_mean.pprint("   odom estimated pose:");
     cout << "   curr odom pose: (" << curr_odom_loc_.x()
          << "," << curr_odom_loc_.y() << ") " << curr_odom_angle_ << endl;
+
+    float x_start,x_end,
+          y_start,y_end,
+          theta_start,theta_end;
     float scale_factor = 4;
     CalcCSMCube(scale_factor,
                 curr_pose_mean,
                 x_start, y_start, theta_start,
                 x_end, y_end, theta_end);
-    cout << "   CUBE dims start x:" << x_start << " end x:" << x_end <<
-            " start y:" << y_start << " end y:" << y_end <<
-            " ang x:" << theta_start << " end ang:" << theta_end << endl;
     float y_step = (y_end-y_start)/params_.linspace_cube;
     float x_step = (x_end-x_start)/params_.linspace_cube;
     float theta_step = fabs((theta_end-theta_start))/params_.linspace_cube;
 
-    float x_t = x_start;
+
+
     PoseSE2 mle_pose = curr_pose_mean;
     float max_posterior_prob = std::numeric_limits<float>::lowest();
-
     cout << "   start going over voxels...x_step y_step theta_step" << x_step
-                << y_step << theta_step <<  endl;
-    for (int i = 0; i <= params_.linspace_cube; ++i) {
-        float y_t = y_start;
-        for (int j = 0; j <=  params_.linspace_cube; ++j) {
-            float theta_t = theta_start;
-            for (int k = 0; k <=  params_.linspace_cube; ++k) {
-                 Vector2f loc_t(x_t,y_t);
+                    << y_step << theta_step <<  endl;
 
-                 PoseSE2 candidate_d_T(loc_t-prev_pose.loc,theta_t-prev_pose.angle);
-                 PoseSE2 candidate_pose = prev_pose + candidate_d_T;
-                 //PoseSE2(loc_t,theta_t).pprint("Sanity test ",true);
-                 tf::transform_points_to_glob_frame(candidate_d_T,
-                                                   curr_scan,
-                                                   transposed_curr_scan);
-                 /*for (size_t i = 0; i < curr_scan.size(); i++) {
-                     debug::print_loc(curr_scan[i], "        loc point", false);
-                     debug::print_loc(transposed_curr_scan[i], " transposed ", true);
-                 }*/
-                 float posterior_prob = CalcPoseMLE(transposed_curr_scan,
-                                                    candidate_pose,
-                                                    curr_pose_mean);
-                 //out << "        -> Obs Likelihood:" << posterior_prob << endl;
-                 /*
-                 tf::transform_points_to_glob_frame(candidate_pose, curr_scan, transposed_curr_scan);
-                 tf::transform_points_to_loc_frame(PoseSE2(prev_odom_loc_, prev_odom_angle_),
-                                                   transposed_curr_scan,backproj_scan);
-                 float posterior_prob = CalcPoseMLE(backproj_scan,
-                                                    candidate_pose,
-                                                    curr_pose_mean);
-                 */
-                 if (posterior_prob > max_posterior_prob) {
+    float x_t = x_start;
+    static vector<Vector2f> mle_backproj_scan;
+    for (int i = 0; i <= params_.linspace_cube; ++i) {
+       float y_t = y_start;
+       for (int j = 0; j <=  params_.linspace_cube; ++j) {
+           float theta_t = theta_start;
+           for (int k = 0; k <=  params_.linspace_cube; ++k) {
+                Vector2f loc_t(x_t,y_t);
+
+                //PoseSE2 candidate_d_T_map_frame = delta_T_;
+                PoseSE2 candidate_pose(loc_t,theta_t);
+                PoseSE2 d_T_prev_pose_frame = tf::transform_pose_to_loc_frame(
+                        prev_pose,
+                        candidate_pose);
+                //PoseSE2(loc_t,theta_t).pprint("Sanity test ",true);
+                tf::transform_points_to_glob_frame(d_T_prev_pose_frame,
+                        curr_scan,
+                        transposed_curr_scan);
+                /*for (size_t i = 0; i < curr_scan.size(); i++) {
+                    debug::print_loc(curr_scan[i], "        loc point", false);
+                    debug::print_loc(transposed_curr_scan[i], " transposed ", true);
+                }*/
+                float posterior_prob  = CalcPoseMLE(transposed_curr_scan,
+                    candidate_pose,
+                    curr_pose_mean);
+
+                if (posterior_prob > max_posterior_prob) {
                      max_posterior_prob = posterior_prob;
                      //mle_pose = PoseSE2(x_t,y_t,theta_t);
                      mle_pose = candidate_pose;
-                 }
-                 theta_t += theta_step;
+                     mle_backproj_scan = transposed_curr_scan;
+                }
+                theta_t += theta_step;
             }
             y_t += y_step;
         }
         x_t += x_step;
     }
-    cout << "   done " << endl;
+    mle_pose = curr_pose_mean;
+    PoseSE2 d_T_prev_pose_frame = tf::transform_pose_to_loc_frame(
+        prev_pose,
+        curr_pose_mean);
+    //PoseSE2(loc_t,theta_t).pprint("Sanity test ",true);
+    tf::transform_points_to_glob_frame(d_T_prev_pose_frame,
+        curr_scan,
+        transposed_curr_scan);
+    float mean_pose_post_prob  = CalcPoseMLE(transposed_curr_scan,
+                        mle_pose,
+                        curr_pose_mean);
+    if (viz_pub_) {
+        visualization::ClearVisualizationMsg(*viz_msg_);
+        visualization::DrawPointCloud(prev_scan_, 0x0000FF, *viz_msg_);
+        visualization::DrawPointCloud(transposed_curr_scan, 0xFF00, *viz_msg_);
+        //visualization::DrawPointCloud(curr_scan, 0x0000, *viz_msg_);
+        viz_pub_->publish(*viz_msg_);
+
+    }
+    cout <<
+    //cout << "   done " << endl;
     return mle_pose;
 }
 
 float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
                     PoseSE2 proposed_pose,
-                    PoseSE2 mean_pose) {
+                    PoseSE2 mean_pose,debug=true) {
   // Get list of probabilities of each laser point based on rasterized image
   vector<float> obs_prob = rasterizer_.query(transposed_scan);
 

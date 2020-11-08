@@ -26,6 +26,8 @@
 #include "eigen3/Eigen/Geometry"
 #include "shared/global_utils.h"
 #include "sensor_msgs/LaserScan.h"
+#include "ros/ros.h"
+
 #include "rasterizer.h"
 #include <cmath>
 
@@ -86,12 +88,19 @@ class SLAM {
 
   float CalcPoseMLE(const std::vector<Eigen::Vector2f>& transposed_scan,
                     PoseSE2 proposed_pose,
-                    PoseSE2 mean_pose);
+                    PoseSE2 mean_pose,
+                    bool debug=false);
   //float LocProbMotionModel(const Eigen::Vector2f& loc,const PoseSE2& mean, Eigen::Matrix3f cov) {return 0;};
 
- SlamParams& getParams() {
-     return params_;
- };
+   SlamParams& getParams() {
+       return params_;
+   };
+
+   void SetRosHandleAndInitPubs(ros::Publisher* pub,
+                                amrl_msgs::VisualizationMsg* msg) {
+       viz_msg_ = msg;
+       viz_pub_ = pub;
+   };
 
  private:
   void CalcCSMCube(float scale_factor,
@@ -121,8 +130,14 @@ class SLAM {
   PoseSE2 delta_T_;
   bool time_to_update_;
 
+  ros::Publisher* viz_pub_;
+  amrl_msgs::VisualizationMsg* viz_msg_;
+
   Rasterizer rasterizer_;
   SlamParams params_;
+
+
+
 };
 }  // namespace slam
 
