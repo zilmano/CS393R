@@ -115,7 +115,8 @@ class SLAM {
   float curr_odom_angle_;
   bool odom_initialized_;
 
-  //vector<vector<Vector2f>> scans_;
+  std::vector<std::vector<Eigen::Vector2f>> scans_;
+  std::vector<PoseSE2> odoms_;
   std::vector<Eigen::Vector2f> prev_scan_;
   std::vector<PoseSE2> poses_;
   std::vector<Eigen::Vector2f> map_;
