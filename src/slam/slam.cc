@@ -111,6 +111,8 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
   cout << "new map size:" << map_.size()<<endl;
 
   poses_.push_back(predicted_pose);
+  scans_.push_back(curr_scan);
+  odoms_.push_back(PoseSE2(curr_odom_loc_, curr_odom_angle_));
   prev_scan_ = curr_scan;
   prev_odom_angle_ = curr_odom_angle_;
   prev_odom_loc_ = curr_odom_loc_;
