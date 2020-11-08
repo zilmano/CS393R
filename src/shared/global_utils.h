@@ -118,6 +118,10 @@ namespace navigation {
         double timestamp;
     };
 
+    struct PairEst {
+        PoseSE2 est_loc;
+        float likelihood;
+    };
 
 }
 

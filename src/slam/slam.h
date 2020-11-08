@@ -33,6 +33,7 @@
 #define SRC_SLAM_H_
 
 using navigation::PoseSE2;
+using navigation::PairEst;
 
 namespace slam {
 
@@ -90,6 +91,9 @@ class SLAM {
                     PoseSE2 proposed_pose,
                     PoseSE2 mean_pose);
   //float LocProbMotionModel(const Eigen::Vector2f& loc,const PoseSE2& mean, Eigen::Matrix3f cov) {return 0;};
+
+  PairEst PairwiseEstimator(int index1, int index2);
+  PairEst CSMV2(std::vector<Eigen::Vector2f> scan1, std::vector<Eigen::Vector2f> scan2, PoseSE2 est_rough);
 
  SlamParams& getParams() {
      return params_;
