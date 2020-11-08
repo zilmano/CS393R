@@ -56,7 +56,7 @@ void Rasterizer::draw_point(const std::vector<Vector2f> &pts, Matrix2f & sigma) 
                 image(x, y) = (image(x, y) > ll)?image(x, y):ll;
             }
     }
-    image = ((image / image.sum()).log() + epsilon).eval();
+    image = ((image / image.sum() + epsilon).log()).eval();
 }
 
 inline Vector2f Rasterizer::idx2coor(int ix, int iy) {
