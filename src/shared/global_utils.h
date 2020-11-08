@@ -36,9 +36,13 @@ namespace debug {
              << line.p0.y() << ")-(" << line.p1.x()
              << "," << line.p1.y() << ")" << std::endl;
     }
-    void inline print_loc(const Eigen::Vector2f& loc,std::string prefix = "") {
-            std::cout << prefix << " (" << loc.x() << "," << loc.y() << ")" << std::endl;
-        }
+    void inline print_loc(const Eigen::Vector2f& loc,std::string prefix = "", bool endline=true) {
+            std::cout << prefix << " (" << loc.x() << "," << loc.y() << ")";
+            if (endline)
+              std::cout << std::endl;
+    }
+
+
 
 }
 
@@ -90,10 +94,12 @@ namespace navigation {
                 return *this;
             }
 
-            void pprint(std::string prefix="Pose:") {
+            void pprint(std::string prefix="Pose:",bool endline=true) {
 
                 std::cout << prefix << " (" << loc.x() << "," << loc.y() << ")"
-                           << " a:" << angle  << std::endl;
+                           << " a:" << angle;
+                if (endline)
+                    std::cout << std::endl;
             }
     };
 

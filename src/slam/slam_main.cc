@@ -164,7 +164,9 @@ int main(int argc, char** argv) {
   params.k_3 = 0.4;
   params.radar_downsample_rate = 10;
   params.linspace_cube = 36;
-  params.sigma_rasterizer <<  5e-2, 0, 0, 5e-2;
+  params.sigma_rasterizer <<  5e-1, 0, 0, 5e-1;
+  params.update_tresh_angle = M_PI/10;
+  params.update_tresh_dist = 0.1;
 
 
   // Initialize ROS.

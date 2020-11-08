@@ -84,7 +84,7 @@ std::vector<float> Rasterizer::query(const std::vector<Vector2f> &pts) {
     res.reserve(pts.size());
     for (auto & pt : pts) {
         if (pt[0] < min_x or pt[0] >= max_x or pt[1] < min_y or pt[1] >= max_y)
-            res.emplace_back(epsilon);
+            res.emplace_back(log(epsilon));
         else {
             Eigen::Vector2f idx = Eigen::round(coor2idx(pt).array()).eval();
             res.emplace_back(image(static_cast<int>(idx[0]), static_cast<int>(idx[1])));
