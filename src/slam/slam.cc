@@ -324,4 +324,27 @@ void SLAM::CalcCSMCube(float scale_factor,
     end_theta = curr_pose_mean.angle + scale_factor*sigma_theta;
 }
 
+PairEst SLAM::PairwiseEstimator(int index1, int index2){
+  PairEst estimate;
+  
+  PoseSE2 odom1 = odoms_[index1];
+  PoseSE2 odom2 = odoms_[index2];
+
+  std::vector<Eigen::Vector2f> scan1 = scans_[index1];
+  std::vector<Eigen::Vector2f> scan2 = scans_[index2];
+
+  PoseSE2 est_rough;
+  est_rough.loc = odom2.loc - odom1.loc;
+  est_rough.angle = odom2.angle - odom1.angle;
+
+  estimate = CSMV2(scan1, scan2, est_rough);
+
+  return estimate;
+}
+
+PairEst SLAM::CSMV2(std::vector<Eigen::Vector2f> scan1, std::vector<Eigen::Vector2f> scan2, PoseSE2 est_rough){
+  PairEst x;
+  return x;
+}
+
 }  // namespace slam
