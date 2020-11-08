@@ -93,3 +93,8 @@ std::vector<float> Rasterizer::query(const std::vector<Vector2f> &pts) {
     }
     return res;
 }
+
+decltype(Rasterizer::qry_img) & Rasterizer::get_qry_history(bool reset) {
+    if (reset) qry_img.setZero();
+    return qry_img;
+}
