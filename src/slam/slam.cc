@@ -34,6 +34,7 @@
 
 #include "vector_map/vector_map.h"
 #include "shared/global_utils.h"
+#include "cvshow.h"
 #include <limits>
 
 using namespace math_util;
@@ -92,7 +93,7 @@ void SLAM::ObserveLaser(const sensor_msgs::LaserScan& msg) {
   if (!time_to_update_)
       return;
 
-  cout << " ---- observe laser, time to update!" << endl;
+  cout << " ---- observe laser, time to update!" << endl << endl;
   delta_T_.pprint("delta_T:");
 
   time_to_update_ = false;
@@ -167,9 +168,10 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     PoseSE2 prev_pose  = poses_.back();
     PoseSE2 curr_pose_mean = prev_pose + delta_T_;
 
-    rasterizer_.rasterize(
+    Eigen::MatrixXf lookup_img = rasterizer_.rasterize(
             prev_scan_,
             params_.sigma_rasterizer);
+    normalized_imwrite(Eigen::exp(lookup_img.array()));
 
     curr_pose_mean.pprint("   odom estimated pose:");
     cout << "   curr odom pose: (" << curr_odom_loc_.x()
@@ -187,15 +189,12 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
     float x_step = (x_end-x_start)/params_.linspace_cube;
     float theta_step = fabs((theta_end-theta_start))/params_.linspace_cube;
 
-
-
     PoseSE2 mle_pose = curr_pose_mean;
     float max_posterior_prob = std::numeric_limits<float>::lowest();
     cout << "   start going over voxels...x_step y_step theta_step" << x_step
                     << y_step << theta_step <<  endl;
-
     float x_t = x_start;
-    static vector<Vector2f> mle_backproj_scan;
+    vector<Vector2f> mle_backproj_scan;
     for (int i = 0; i <= params_.linspace_cube; ++i) {
        float y_t = y_start;
        for (int j = 0; j <=  params_.linspace_cube; ++j) {
@@ -232,35 +231,54 @@ PoseSE2 SLAM::ExecCSM(const vector<Vector2f>& curr_scan) {
         }
         x_t += x_step;
     }
-    mle_pose = curr_pose_mean;
-    PoseSE2 d_T_prev_pose_frame = tf::transform_pose_to_loc_frame(
-        prev_pose,
-        curr_pose_mean);
-    //PoseSE2(loc_t,theta_t).pprint("Sanity test ",true);
-    tf::transform_points_to_glob_frame(d_T_prev_pose_frame,
-        curr_scan,
-        transposed_curr_scan);
-    float mean_pose_post_prob  = CalcPoseMLE(transposed_curr_scan,
-                        mle_pose,
-                        curr_pose_mean);
+    rasterizer_.get_qry_history(true);
+
+    mle_pose.pprint("   MLE estimated pose: ");
+    cout << "  Probs of scan of estimated pose --> ";
+    CalcPoseMLE(mle_backproj_scan,
+                    mle_pose,
+                    curr_pose_mean,true);
+    Eigen::MatrixXf scan_img1 = rasterizer_.get_qry_history();
+    normalized_imwrite(scan_img1,"mle_pose_backproj.png");
+    rasterizer_.get_qry_history(true);
+
     if (viz_pub_) {
         visualization::ClearVisualizationMsg(*viz_msg_);
         visualization::DrawPointCloud(prev_scan_, 0x0000FF, *viz_msg_);
-        visualization::DrawPointCloud(transposed_curr_scan, 0xFF00, *viz_msg_);
-        //visualization::DrawPointCloud(curr_scan, 0x0000, *viz_msg_);
+        //visualization::DrawPointCloud(transposed_curr_scan, 0xFF00, *viz_msg_);
+        visualization::DrawPointCloud(mle_backproj_scan, 0xFF0000, *viz_msg_);
+     }
+
+
+    PoseSE2 d_T_prev_pose_frame = tf::transform_pose_to_loc_frame(
+            prev_pose,
+            curr_pose_mean);
+    tf::transform_points_to_glob_frame(d_T_prev_pose_frame,
+            curr_scan,
+            transposed_curr_scan);
+    cout << "  Probs of scan of real pose -->";
+    CalcPoseMLE(transposed_curr_scan,
+                            curr_pose_mean,
+                            curr_pose_mean,true);
+    visualization::DrawPointCloud(transposed_curr_scan, 0xFF00, *viz_msg_);
+    Eigen::MatrixXf scan_img2 = rasterizer_.get_qry_history();
+    normalized_imwrite(scan_img2,"best_pose_backproj.png");
+    if (viz_pub_)
         viz_pub_->publish(*viz_msg_);
 
-    }
-    cout <<
     //cout << "   done " << endl;
+    //mle_pose = curr_pose_mean;
+
     return mle_pose;
 }
 
 float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
                     PoseSE2 proposed_pose,
-                    PoseSE2 mean_pose,debug=true) {
+                    PoseSE2 mean_pose,bool debug) {
   // Get list of probabilities of each laser point based on rasterized image
   vector<float> obs_prob = rasterizer_.query(transposed_scan);
+  float inv_lambda = params_.observ_lambda_frac / obs_prob.size();
+  inv_lambda = (inv_lambda < 0.5)?inv_lambda:0.5;
 
   // proposed pose
   float prop_x = proposed_pose.loc.x();
@@ -292,11 +310,12 @@ float SLAM::CalcPoseMLE(const vector<Vector2f>& transposed_scan,
   vector<float> llh = loglikelihood_3d_mvn(proposed_p_list, mean_p, mat);
   float motion_prob = std::accumulate(llh.begin(), llh.end(), 0.0f);
 
-  //cout << "            motion prior log-prob: " << motion_prob << endl;
-  //cout << "            obs log prob: "
-  //     << std::accumulate(obs_prob.begin(), obs_prob.end(), 0.0f) << endl;
-
-  return std::accumulate(obs_prob.begin(), obs_prob.end(), 0.0f) + motion_prob;
+  if (debug) {
+    cout << "            motion prior log-prob: " << motion_prob << endl;
+    cout << "            obs log prob: "
+         << std::accumulate(obs_prob.begin(), obs_prob.end(), 0.0f) << endl;
+  }
+  return inv_lambda*std::accumulate(obs_prob.begin(), obs_prob.end(), 0.0f) + motion_prob;
 
 }
 

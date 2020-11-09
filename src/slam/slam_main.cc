@@ -94,7 +94,7 @@ void InitializeMsgs() {
 
 void PublishMap() {
   static double t_last = 0;
-  if (GetMonotonicTime() - t_last < 10) {
+  if (GetMonotonicTime() - t_last < 1) {
     // Rate-limit visualization.
     return;
   }
@@ -167,13 +167,14 @@ int main(int argc, char** argv) {
   params.k_2 = 0.1;
   params.k_4 = 0.2;
   params.k_3 = 0.4;
-  params.radar_downsample_rate = 5;
+  params.radar_downsample_rate = 10;
   params.linspace_cube = 36;
-  params.sigma_rasterizer <<  5e-1, 0, 0, 5e-1;
+  params.sigma_rasterizer <<  5e-3, 0, 0, 5e-3;
   params.update_tresh_angle = M_PI/3;
   params.update_tresh_dist = 0.5;
 
-  slam_.SetRosHandleAndInitPubs(&visualization_publisher_,&vis_msg_local_);
+  slam_.SetRosHandleAndInitPubs(NULL, &vis_msg_local_);
+  //slam_.SetRosHandleAndInitPubs(NULL, &vis_msg_local_);
   // Initialize ROS.
   ros::init(argc, argv, "slam");
   ros::NodeHandle n;

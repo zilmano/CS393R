@@ -44,7 +44,8 @@ struct SlamParams {
                             update_tresh_angle(M_PI/3),
                             update_tresh_dist(0.5),
                             linspace_cube(20),
-                            lidar_range_cutoff(5){
+                            lidar_range_cutoff(5),
+                            observ_lambda_frac(10){
         sigma_rasterizer <<  1.75e-3, 1e-3, 1e-3, 1.75e-3;
     }
     unsigned int radar_downsample_rate;
@@ -60,6 +61,7 @@ struct SlamParams {
     float update_tresh_dist;
     float linspace_cube;
     float lidar_range_cutoff;
+    float observ_lambda_frac;
     Eigen::Matrix2f sigma_rasterizer;
     //float sigma_obs;
     //float gamma;
