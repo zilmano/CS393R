@@ -8,18 +8,20 @@
 #include <eigen3/Eigen/Dense>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
+#include <algorithm>
+#include <vector>
+#include <string>
 
 template<typename EigenMatrixT>
-void normalized_imshow(const EigenMatrixT & in) {
+inline void normalized_imshow(const EigenMatrixT & in, const std::string & title = "Rasterization") {
     cv::Mat cvimg;
     auto maxele = in.maxCoeff();
     Eigen::MatrixXf norm_img = in / maxele;
-    std::cout << maxele << std::endl;
+    std::cout << "Max heatpoint " << maxele << std::endl;
     cv::eigen2cv(norm_img, cvimg);
-    cv::imwrite("out.png", cvimg * 256.0);
-    cv::namedWindow("Rasterization", cv::WINDOW_AUTOSIZE );
-    cv::imshow("Rasterization", cvimg);
-    cv::waitKey(0);
+    cv::imwrite((title + ".png").c_str(), cvimg * 256.0);
+    cv::namedWindow(title.c_str(), cv::WINDOW_AUTOSIZE );
+    cv::imshow(title.c_str(), cvimg);
 }
 
 inline void normalized_voxelshow(const std::vector<Eigen::ArrayXXf> & in, const std::string & title) {
@@ -47,6 +49,5 @@ inline void normalized_imwrite(const EigenMatrixT & in, const std::string & titl
     cv::eigen2cv(norm_img, cvimg);
     cv::imwrite((title + ".png").c_str(), cvimg * 256.0);
 }
-
 
 #endif //REPO_CVSHOW_H
