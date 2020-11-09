@@ -337,14 +337,16 @@ PairEst SLAM::PairwiseEstimator(int index1, int index2){
   est_rough.loc = odom2.loc - odom1.loc;
   est_rough.angle = odom2.angle - odom1.angle;
 
-  estimate = CSMV2(scan1, scan2, est_rough);
+  estimate = CSMV2(scan1, scan2, odom1, est_rough);
 
   return estimate;
 }
 
-PairEst SLAM::CSMV2(std::vector<Eigen::Vector2f> scan1, std::vector<Eigen::Vector2f> scan2, PoseSE2 est_rough){
+PairEst SLAM::CSMV2(std::vector<Eigen::Vector2f> scan1, std::vector<Eigen::Vector2f> scan2, PoseSE2 pose1,
+                    PoseSE2 rough_deltaT) {
   PairEst x;
   return x;
+  //Step 1: back proj scan 2 to last time stamp wrt pose 1 and rough_deltaT
 }
 
 }  // namespace slam

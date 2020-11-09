@@ -93,7 +93,8 @@ class SLAM {
   //float LocProbMotionModel(const Eigen::Vector2f& loc,const PoseSE2& mean, Eigen::Matrix3f cov) {return 0;};
 
   PairEst PairwiseEstimator(int index1, int index2);
-  PairEst CSMV2(std::vector<Eigen::Vector2f> scan1, std::vector<Eigen::Vector2f> scan2, PoseSE2 est_rough);
+  PairEst
+  CSMV2(std::vector<Eigen::Vector2f> scan1, std::vector<Eigen::Vector2f> scan2, PoseSE2 pose1, PoseSE2 rough_deltaT);
 
  SlamParams& getParams() {
      return params_;
