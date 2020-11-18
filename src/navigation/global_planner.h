@@ -37,17 +37,28 @@ struct GraphIndex {
         orient = _orient;
     };
 
-    bool operator==(const GraphIndex& rhs) {
+    bool operator==(const GraphIndex& rhs) const {
         if (this->x == rhs.x && this->y == rhs.y && this->orient == rhs.orient)
             return true;
         return false;
-    }
+    };
 
-    bool operator!=(const GraphIndex& rhs) {
+    bool operator!=(const GraphIndex& rhs) const {
             if (this->x != rhs.x || this->y != rhs.y || this->orient != rhs.orient)
                 return true;
             return false;
-        }
+    };
+
+    bool operator<(const GraphIndex& rhs) const
+    {
+           if (this->x >= rhs.x)
+               return false;
+           if (this->y >= rhs.y)
+               return false;
+           if (this->orient >= rhs.orient)
+               return false;
+           return true;
+    };
 
     int x;
     int y;
