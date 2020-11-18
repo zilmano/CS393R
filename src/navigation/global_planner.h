@@ -48,6 +48,7 @@ typedef vector<list<GraphIndex>> vec_1d;
 typedef vector<vec_1d> vec_2d;
 typedef vector<vec_2d> vec_3d;
 typedef vec_3d Vertices;
+typedef std::pair<planning::GraphIndex, double> element;
 
 class Graph {
 public:
@@ -76,6 +77,11 @@ public:
         return vertices_;
     }
 
+    /*
+    float GetGridSpacing() const {
+        return grid_spacing_;
+    }
+    */
 
 
 private:
@@ -102,6 +108,38 @@ private:
     int num_vertices_y_;
 };
 
+class A_star{
+
+public:
+    A_star(Graph graph, const navigation::PoseSE2& start, const navigation::PoseSE2& goal):
+          graph_(graph){
+        
+        findStartAndGoalVertex(start, goal);
+        
+        };        
+
+    std::list<GraphIndex> generatePath();
+
+    double calcCost(const GraphIndex& current, const GraphIndex& next);
+
+    double calcHeuristic(const GraphIndex& next);
+
+private:
+    void findStartAndGoalVertex(const navigation::PoseSE2& start, const navigation::PoseSE2& goal);
+
+private:
+    Graph graph_;   
+    std::list<GraphIndex> path_;
+    GraphIndex start_;
+    GraphIndex goal_; 
+
+    std::priority_queue<element, std::vector<element>, std::greater<element>> frontier_;
+    std::map<GraphIndex, GraphIndex> came_from_;
+    std::map<GraphIndex, double> cost_so_far_;
+};
+
+
 }
+
 #endif /* SRC_NAVIGATION_GLOBAL_PLANNER_ */
 

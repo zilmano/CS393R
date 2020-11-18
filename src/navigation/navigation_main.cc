@@ -183,6 +183,19 @@ planning::Graph test() {
 
 }
 
+std::list<planning::GraphIndex> navtest(planning::Graph graph){ 
+  PoseSE2 start(0, 25, -7.15);
+  //start.loc = robot_loc_;
+  //start.angle = robot_angle_;
+  PoseSE2 goal(10, 50, -7.15);
+  //goal.loc = nav_goal_loc_;
+  //goal.angle = nav_goal_angle_;
+
+  planning::A_star gplan(graph, start, goal);
+
+  return gplan.generatePath();
+}
+
 void visualizeGraph(planning::Graph graph) {
 
     planning::Vertices V = graph.GetVertices();
