@@ -189,23 +189,23 @@ namespace planning {
     }
 
     std::list<GraphIndex> A_star::generatePath(){
-        frontier_.push(start_,0);
+        frontier_.emplace(0,start_);
         came_from_[start_] = start_;
         cost_so_far_[start_] = 0;
 
         while(!frontier_.empty()){
-            GraphIndex current = frontier_.top();
+            GraphIndex current = frontier_.top().second;
             if(current == goal_){
                 break;
             }
             
-            std::list<GraphIndex> neighbors = Graph::GetVertexNeigbors(current);
-            for(int i = 0; i < neighbors.size(); i++){
+            std::list<GraphIndex> neighbors = Graph::GetVertexNeighbors(current);
+            for(std::size_t i = 0; i < neighbors.size(); i++){
                 double new_cost = cost_so_far_[current] + A_star::calcCost(current, neighbors[i]);
                 if(new_cost < cost_so_far_[neighbors[i]] || cost_so_far_.find(neighbors[i]) == cost_so_far_.end()){
                     cost_so_far_ = new_cost;
                     double priority = new_cost + A_star::calcHeuristic(neighbors[i]);
-                    frontier_.push(neighbors[i], priority);
+                    frontier_.emplace(priority, neighbors[i]);
                     came_from_[neighbors[i]] = current;
                 }
             }
