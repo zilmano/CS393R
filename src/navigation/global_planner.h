@@ -58,7 +58,7 @@ typedef vector<list<GraphIndex>> vec_1d;
 typedef vector<vec_1d> vec_2d;
 typedef vector<vec_2d> vec_3d;
 typedef vec_3d Vertices;
-typedef std::pair<double, planning::GraphIndex> element;
+typedef std::pair<double, planning::GraphIndex> Element;
 
 class Graph {
 public:
@@ -143,7 +143,7 @@ private:
     GraphIndex start_;
     GraphIndex goal_; 
 
-    std::priority_queue<element, std::vector<element>, std::greater<element>> frontier_;
+    std::priority_queue<Element, std::vector<Element>, std::greater<Element>> frontier_;
     std::map<GraphIndex, GraphIndex> came_from_;
     std::map<GraphIndex, double> cost_so_far_;
 };
