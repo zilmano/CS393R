@@ -24,6 +24,8 @@ using std::list;
 namespace planning {
 
 struct GraphIndex {
+    GraphIndex():x(0),y(0),orient(0) {};
+
     GraphIndex(int _x, int _y, int _orient, float check_neg=true) {
         if (check_neg && (_x < 0 || _y < 0 || _orient < 0)) {
             cout << x << " " <<  y << " " << orient << endl;
@@ -49,7 +51,7 @@ typedef vector<list<GraphIndex>> vec_1d;
 typedef vector<vec_1d> vec_2d;
 typedef vector<vec_2d> vec_3d;
 typedef vec_3d Vertices;
-typedef std::pair<planning::GraphIndex, double> element;
+typedef std::pair<planning::GraphIndex, double> Element;
 
 class Graph {
 public:
@@ -115,7 +117,7 @@ public:
     A_star(Graph graph, const navigation::PoseSE2& start, const navigation::PoseSE2& goal):
           graph_(graph), start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){
         
-        findStartAndGoalVertex(start, goal);
+           findStartAndGoalVertex(start, goal);
 
         };
 
@@ -134,7 +136,7 @@ private:
     GraphIndex start_;
     GraphIndex goal_; 
 
-    std::priority_queue<element, std::vector<element>, std::greater<element>> frontier_;
+    std::priority_queue<Element, std::vector<Element>, std::greater<Element>> frontier_;
     std::map<GraphIndex, GraphIndex> came_from_;
     std::map<GraphIndex, double> cost_so_far_;
 };
