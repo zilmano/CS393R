@@ -199,14 +199,14 @@ namespace planning {
                 break;
             }
             
-            std::list<GraphIndex> neighbors = Graph::GetVertexNeighbors(current);
-            for(std::size_t i = 0; i < neighbors.size(); i++){
-                double new_cost = cost_so_far_[current] + A_star::calcCost(current, neighbors[i]);
-                if(new_cost < cost_so_far_[neighbors[i]] || cost_so_far_.find(neighbors[i]) == cost_so_far_.end()){
-                    cost_so_far_ = new_cost;
-                    double priority = new_cost + A_star::calcHeuristic(neighbors[i]);
-                    frontier_.emplace(priority, neighbors[i]);
-                    came_from_[neighbors[i]] = current;
+            std::list<GraphIndex> neighbors = graph_.GetVertexNeighbors(current);
+            for(auto const& neighbor : neighbors){
+                double new_cost = cost_so_far_[current] + A_star::calcCost(current, neighbor);
+                if(new_cost < cost_so_far_[neighbor] || cost_so_far_.find(neighbor) == cost_so_far_.end()){
+                    cost_so_far_[neighbor] = new_cost;
+                    double priority = new_cost + A_star::calcHeuristic(neighbor);
+                    frontier_.emplace(priority, neighbor);
+                    came_from_[neighbor] = current;
                 }
             }
         } 
@@ -221,16 +221,16 @@ namespace planning {
     }
 
     double A_star::calcCost(const GraphIndex& current, const GraphIndex& next){
-        return std::sqrt(std::pow(next.x - current.x) + std::pow(next.y - current.y));
+        return std::sqrt(std::pow(next.x - current.x, 2) + std::pow(next.y - current.y, 2)*1.0);
     }
 
     double A_star::calcHeuristic(const GraphIndex& next){
-        return std::sqrt(std::pow(goal_.x - next.x) + std::pow(goal.y - next.y));
+        return std::sqrt(std::pow(goal_.x - next.x, 2) + std::pow(goal_.y - next.y, 2)*1.0);
     }
 
     void A_star::findStartAndGoalVertex(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
-        start_ = Graph::GetClosestVertex(start);
-        goal_ = Graph::GetClosestVertex(goal);
+        start_ = graph_.GetClosestVertex(start);
+        goal_ = graph_.GetClosestVertex(goal);
     }
 
 }
