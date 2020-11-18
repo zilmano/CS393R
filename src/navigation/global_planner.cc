@@ -24,17 +24,17 @@ namespace planning {
             num_vertices_y_ -= 1;
 
         // Initialize 3D vector. Each member is a list of Indexes of connected nodes.
-        num_vertices_x_ = (unsigned int)num_vertices_x;
-        num_vertices_x_ = (unsigned int)num_vertices_y;
+        num_vertices_x_ = (int) num_vertices_x;
+        num_vertices_y_ = (int) num_vertices_y;
         vertices_ = Vertices(
                 num_vertices_x_,
                 vec_2d(num_vertices_y_,
                 vec_1d(num_of_orient_)));
 
         // Generate Edges between neighbor vertices
-        for (size_t x = 0; x < num_vertices_x_; ++x) {
-           for (size_t y = 0; y < num_vertices_y_; ++y) {
-               for (size_t o = 0; o < num_of_orient_; ++o) {
+        for (int x = 0; x < num_vertices_x_; ++x) {
+           for (int y = 0; y < num_vertices_y_; ++y) {
+               for (int o = 0; o < num_of_orient_; ++o) {
                    list<GraphIndex> neighbors;
                    GraphIndex curr_vertex(x,y,o);
                    GetConnectedNeighbors(curr_vertex, neighbors);
@@ -50,9 +50,15 @@ namespace planning {
                                                     const list<GraphIndex>& neighbors,
                                                     const vector_map::VectorMap& map){
         list<GraphIndex> result;
+        Eigen::Vector2f vertex_loc = GetLocFromVertexIndex(vertex.x,vertex.y);
+
         for (auto &neighbor : neighbors) {
-            geometry::line2f edge(Eigen::Vector2f(vertex.x,vertex.y),
-                                  Eigen::Vector2f(neighbor.x,neighbor.y));
+            if (neighbor.x >= num_vertices_x_ || neighbor.y >= num_vertices_y_
+                    || neighbor.x < 0 || neighbor.y < 0)
+                continue;
+            Eigen::Vector2f neighbor_loc =
+                    GetLocFromVertexIndex(neighbor.x,neighbor.y);
+            geometry::line2f edge(vertex_loc, neighbor_loc);
             if (!checkEdgeForObstacles(edge, map))
                 result.push_back(neighbor);
         }
@@ -63,38 +69,49 @@ namespace planning {
                                       const vector_map::VectorMap& map) {
         for (auto &line: map.lines) {
             if (line.CloserThan(edge.p0,edge.p1,margin_to_wall_))
-                return false;
+                return true;
         }
-        return true;
+        return false;
     }
 
     void Graph::GetConnectedNeighbors(const GraphIndex& index,
                                       list<GraphIndex>& neighbors) {
-       if (num_of_orient_ == 4) {
-            switch (index.orient) {
+       if (num_of_orient_ == 1) {
+           neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient,false));
+           neighbors.push_back(GraphIndex(index.x+1,index.y,index.orient, false));
+           neighbors.push_back(GraphIndex(index.x+1,index.y+1,index.orient, false));
+           neighbors.push_back(GraphIndex(index.x,index.y+1,index.orient, false));
+           neighbors.push_back(GraphIndex(index.x-1,index.y+1,index.orient, false));
+           neighbors.push_back(GraphIndex(index.x-1,index.y,index.orient,  false));
+           neighbors.push_back(GraphIndex(index.x-1,index.y-1,index.orient, false));
+           neighbors.push_back(GraphIndex(index.x,index.y-1,index.orient, false));
+           neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient, false));
+       } else if (num_of_orient_ == 4) {
+           switch (index.orient) {
               case 0:
-                  neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient));
-                  neighbors.push_back(GraphIndex(index.x+1,index.y,index.orient));
-                  neighbors.push_back(GraphIndex(index.x+1,index.y+1,index.orient));
-                  break;
+              neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient,false));
+              neighbors.push_back(GraphIndex(index.x+1,index.y,index.orient, false));
+              neighbors.push_back(GraphIndex(index.x+1,index.y+1,index.orient, false));
+              break;
               case 1:
-                  neighbors.push_back(GraphIndex(index.x-1,index.y+1,index.orient));
-                  neighbors.push_back(GraphIndex(index.x,index.y+1,index.orient));
-                  neighbors.push_back(GraphIndex(index.x+1,index.y+1,index.orient));
-                  break;
+              neighbors.push_back(GraphIndex(index.x-1,index.y+1,index.orient, false));
+              neighbors.push_back(GraphIndex(index.x,index.y+1,index.orient, false));
+              neighbors.push_back(GraphIndex(index.x+1,index.y+1,index.orient, false));
+              break;
               case 2:
-                  neighbors.push_back(GraphIndex(index.x-1,index.y-1,index.orient));
-                  neighbors.push_back(GraphIndex(index.x-1,index.y,index.orient));
-                  neighbors.push_back(GraphIndex(index.x-1,index.y+1,index.orient));
-                  break;
+              neighbors.push_back(GraphIndex(index.x-1,index.y-1,index.orient, false));
+              neighbors.push_back(GraphIndex(index.x-1,index.y,index.orient,  false));
+              neighbors.push_back(GraphIndex(index.x-1,index.y+1,index.orient,  false));
+              break;
               case 3:
-                  neighbors.push_back(GraphIndex(index.x-1,index.y-1,index.orient));
-                  neighbors.push_back(GraphIndex(index.x,index.y-1,index.orient));
-                  neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient));
-                  break;
+              neighbors.push_back(GraphIndex(index.x-1,index.y-1,index.orient, false));
+              neighbors.push_back(GraphIndex(index.x,index.y-1,index.orient, false));
+              neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient, false));
+              break;
             }
         } else if (num_of_orient_ == 8) {
-            cout << "Not implemented";
+            cout << "GetConnectedNeighbors:: num_of_orient_==8 not implemented";
+            throw;
         } else {
             cout << "ERROR: Graph::GetConnectedNeighbors -> number of orientations should be 4, or 8. Others are not supported." << endl;
             throw;
@@ -107,15 +124,16 @@ namespace planning {
         float vertex_frac_y = modf((pose.loc.y()-y_start_)/grid_spacing_, &vertex_num_y);
 
         float angle = NormalizeAngle(pose.angle);
+        cout << vertex_num_x << " " << vertex_num_y << endl;
         if (vertex_num_x > num_vertices_x_ || vertex_num_y > num_vertices_y_) {
             cout << "ERROR: planning::Graph::getClosestVertex -> Provided pose is outside (above) of planning map bounds" << endl;
             throw;
         }
 
-        if ((vertex_frac_x > 0.5 && (unsigned int) vertex_num_x != num_vertices_x_)
+        if ((vertex_frac_x > 0.5 && (int) vertex_num_x != num_vertices_x_)
                 || vertex_num_x == 0)
             vertex_num_x += 1;
-        if ((vertex_frac_y > 0.5 && (unsigned int) vertex_num_y != num_vertices_y_)
+        if ((vertex_frac_y > 0.5 && (int) vertex_num_y != num_vertices_y_)
                 || vertex_num_y == 0)
             vertex_num_y += 1;
 
@@ -128,24 +146,37 @@ namespace planning {
         if (vertex_frac_orient > 0.5)
             vertex_num_orient += 1;
 
-        if (vertex_num_orient == num_of_orient_)
+        if (vertex_num_orient == num_of_orient_ || num_of_orient_ == 1)
             vertex_num_orient = 0;
 
-        return GraphIndex((unsigned int)vertex_num_x,
-                          (unsigned int)vertex_num_y,
-                          (unsigned int)vertex_num_orient);
+        return GraphIndex((int)vertex_num_x-1,
+                          (int)vertex_num_y-1,
+                          (int)vertex_num_orient);
     }
 
-    std::list<GraphIndex> Graph::GetVertexNeigbors(const GraphIndex& index) {
-        if (index.x > num_vertices_x_
-                || index.y > num_vertices_y_
+    std::list<GraphIndex> Graph::GetVertexNeighbors(const GraphIndex& index) {
+        if (index.x >= num_vertices_x_
+                || index.y >= num_vertices_y_
                 || index.orient > num_of_orient_
-                || index.x < 1
-                || index.y < 1) {
+                || index.x < 0
+                || index.y < 0
+                || index.orient < 0) {
             cout << "ERROR: planning::Graph::GetVertexNeigbors -> Vertex Index is out of bounds in the graph" << endl;
             throw;
         }
-        return vertices_[index.x-1][index.y-1][index.orient];
+        return vertices_[index.x][index.y][index.orient];
+    }
+
+    Eigen::Vector2f Graph::GetLocFromVertexIndex(int index_x,
+                                                 int index_y) {
+        if (index_x >= num_vertices_x_
+              || index_y >= num_vertices_y_
+              || index_x < 0
+              || index_y < 0) {
+            cout << "ERROR: planning::Graph::GetLocFromVertexIndex -> Vertex Index is out of bounds in the graph" << endl;
+            throw;
+        }
+        return Eigen::Vector2f((index_x+1)*grid_spacing_+x_start_,(index_y+1)*grid_spacing_+y_start_);
     }
 
     float Graph::NormalizeAngle(float angle) {

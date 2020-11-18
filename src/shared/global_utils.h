@@ -41,9 +41,6 @@ namespace debug {
             if (endline)
               std::cout << std::endl;
     }
-
-
-
 }
 
 namespace visualization {

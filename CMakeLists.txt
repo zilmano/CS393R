@@ -81,6 +81,7 @@ ROSBUILD_ADD_EXECUTABLE(navigation
                         src/navigation/pointcloud.cpp
                         src/navigation/collisionplanner.cpp
                         src/navigation/state_estimator.cc
+			src/navigation/global_planner.cc
         )
 TARGET_LINK_LIBRARIES(navigation shared_library ${libs} )
 

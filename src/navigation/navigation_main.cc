@@ -47,6 +47,13 @@
 #include "amrl_msgs/Localization2DMsg.h" 
 
 #include "navigation.h"
+#include "global_planner.h"
+
+// OLEG TODO remove this include it is for debug:
+#include "vector_map/vector_map.h"
+#include "amrl_msgs/VisualizationMsg.h"
+using amrl_msgs::VisualizationMsg;
+
 
 using amrl_msgs::Localization2DMsg;
 using math_util::DegToRad;
@@ -73,6 +80,9 @@ DEFINE_string(map, "maps/GDC1.txt", "Name of vector map file");
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
 Navigation* navigation_ = nullptr;
+
+ros::Publisher visualization_pub_;
+VisualizationMsg map_viz_msg_;
 
 void LaserCallback(const sensor_msgs::LaserScan& msg) {
   if (FLAGS_v > 0) {
@@ -129,6 +139,81 @@ void LocalizationCallback(const amrl_msgs::Localization2DMsg msg) {
   navigation_->UpdateLocation(Vector2f(msg.pose.x, msg.pose.y), msg.pose.theta);
 }
 
+planning::Graph test() {
+    vector_map::VectorMap map;
+    string map_file = "GDC1";
+    string full_map_file;
+    if (map_file.find('.') == string::npos) {
+       full_map_file = "maps/" + map_file + "/" + map_file + ".vectormap.txt";
+    } else {
+       full_map_file = map_file;
+    }
+
+    cout << "Loading map file '" << full_map_file << "'...." << endl;
+    map.Load(full_map_file);
+    cout << "Done loading map." << endl;
+
+    float  margin_to_wall = 0.10;
+    float grid_spacing = 1;
+    int orient_num = 1;
+    planning::Graph graph(grid_spacing, -50, 50, -30, 30, orient_num , margin_to_wall, map);
+
+
+    //graph.GenerateGraph(map);
+
+    /*planning::Vertices V = graph.GetVertices();
+    std::cout << "X dim:" << V.size() << std::endl;
+    for (auto &y_vector: V) {
+        std::cout << "Y_dim" << y_vector.size()  << std::endl;
+        for (auto &o_vector: y_vector) {
+            std::cout << "orient_dim" << o_vector.size() << std::endl;
+            break;
+        }
+
+    }*/
+
+    //V[6][2][1].push_back(planning::GraphIndex(7,2,1));
+    //V[6][2][1].push_back(planning::GraphIndex(7,3,1));
+
+    planning::GraphIndex index = graph.GetClosestVertex(PoseSE2(0, 25, -7.15));
+    cout << "X id:" << index.x << " Y id:" << index.y << " Orient id:"
+         << index.orient << std::endl;
+
+    return graph;
+
+}
+
+void visualizeGraph(planning::Graph graph) {
+
+    planning::Vertices V = graph.GetVertices();
+    visualization::ClearVisualizationMsg(map_viz_msg_);
+
+    //visualization::DrawCross(Eigen::Vector2f(0,0), 0.5, 0x000FF, map_viz_msg_);
+    for (int x_id = 0; x_id < (int)V.size(); ++x_id) {
+        for (int y_id = 0; y_id < (int)V[0].size(); ++y_id) {
+            Eigen::Vector2f vertex_loc = graph.GetLocFromVertexIndex(x_id,y_id);
+            for (int o_id = 0; o_id < (int)V[0][0].size(); ++o_id) {
+                planning::GraphIndex curr_vertex(x_id,y_id,o_id);
+                list<planning::GraphIndex> neighbors = graph.GetVertexNeighbors(curr_vertex);
+                for ( auto &neighbor : neighbors) {
+                    //geometry::line2f edge(
+                    //        graph.GetLocFromVertexIndex(x_id,y_id),
+                    //       graph.GetLocFromVertexIndex(neighbor.x,neighbor.y));
+                    visualization::DrawLine(
+                            graph.GetLocFromVertexIndex(x_id,y_id),
+                            graph.GetLocFromVertexIndex(neighbor.x,neighbor.y),
+                            0x000000,
+                            map_viz_msg_);
+                }
+            }
+
+            visualization::DrawCross(vertex_loc, 0.25, 0x000FF, map_viz_msg_);
+
+        }
+    }
+    visualization_pub_.publish(map_viz_msg_);
+}
+
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
   signal(SIGINT, SignalHandler);
@@ -145,12 +230,19 @@ int main(int argc, char** argv) {
       n.subscribe(FLAGS_laser_topic, 1, &LaserCallback);
   ros::Subscriber goto_sub =
       n.subscribe("/move_base_simple/goal", 1, &GoToCallback);
+  visualization_pub_ =
+      n.advertise<VisualizationMsg>("visualization", 1);
+  map_viz_msg_ = visualization::NewVisualizationMessage("map", "navigation");
+
 
   RateLoop loop(20.0);
+  //planning::Graph graph = test();
   while (run_ && ros::ok()) {
     ros::spinOnce();
     navigation_->Run();
+    //visualizeGraph(graph);
     loop.Sleep();
+
   }
   delete navigation_;
   return 0;

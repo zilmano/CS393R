@@ -23,17 +23,25 @@ using std::list;
 namespace planning {
 
 struct GraphIndex {
-    GraphIndex(unsigned int _x, unsigned int _y, unsigned int _orient):
-               x(_x), y(_y), orient(_orient) {};
+    GraphIndex(int _x, int _y, int _orient, float check_neg=true) {
+        if (check_neg && (_x < 0 || _y < 0 || _orient < 0)) {
+            cout << x << " " <<  y << " " << orient << endl;
+            cout << "ERROR: GraphIndex::GraphIndex -> indexes cannot be negative " << endl;
+            throw;
+        }
+        x = _x;
+        y = _y;
+        orient = _orient;
+    };
 
     bool operator==(const GraphIndex& rhs) {
         if (this->x == rhs.x && this->y == rhs.y && this->y == rhs.y)
             return true;
         return false;
     }
-    unsigned int x;
-    unsigned int y;
-    unsigned int orient;
+    int x;
+    int y;
+    int orient;
 };
 
 typedef vector<list<GraphIndex>> vec_1d;
@@ -44,12 +52,11 @@ typedef vec_3d Vertices;
 class Graph {
 public:
     Graph(float grid_spacing, int x_start, int x_end, int y_start,
-          int y_end, unsigned int num_of_orient, float margin_to_wall, const vector_map::VectorMap& map):
+          int y_end, int num_of_orient, float margin_to_wall, const vector_map::VectorMap& map):
           grid_spacing_(grid_spacing), x_start_(x_start),x_end_(x_end),
           y_start_(y_start),y_end_(y_end),num_of_orient_(num_of_orient),
-          margin_to_wall_(margin_to_wall)
-    {
-        if (num_of_orient != 4 && num_of_orient != 8) {
+          margin_to_wall_(margin_to_wall) {
+        if (num_of_orient != 1 && num_of_orient != 4 && num_of_orient != 8) {
             cout << "ERROR: Graph::Graph -> In graph constructor, passed number of orientations should be 4, or 8. Others are not supported." << endl;
             throw;
         }
@@ -57,14 +64,19 @@ public:
     };
 
     void GenerateGraph(const vector_map::VectorMap& map);
-    std::list<GraphIndex> GetVertexNeigbors(const GraphIndex& index);
+
+    std::list<GraphIndex> GetVertexNeighbors(const GraphIndex& index);
     //std::list<GraphIndex> GetVertexNeigbors(const navigation::PoseSE2& pose);
+
     GraphIndex GetClosestVertex(const navigation::PoseSE2& pose);
+    Eigen::Vector2f GetLocFromVertexIndex(int index_x, int index_y);
     void AddWallToGraph(const geometry::line2f&  line){};
 
     const Vertices& GetVertices() const {
         return vertices_;
     }
+
+
 
 private:
     float NormalizeAngle(float angle);
@@ -82,12 +94,12 @@ private:
     int x_end_;
     int y_start_;
     int y_end_;
-    unsigned int num_of_orient_;
+    int num_of_orient_;
     float margin_to_wall_;
 
     Vertices vertices_;
-    unsigned int num_vertices_x_;
-    unsigned int num_vertices_y_;
+    int num_vertices_x_;
+    int num_vertices_y_;
 };
 
 }
