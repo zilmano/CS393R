@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <list>
+#include <queue>
 
 namespace vector_map {
     class VectorMap;
@@ -112,11 +113,11 @@ class A_star{
 
 public:
     A_star(Graph graph, const navigation::PoseSE2& start, const navigation::PoseSE2& goal):
-          graph_(graph){
+          graph_(graph), start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){
         
         findStartAndGoalVertex(start, goal);
-        
-        };        
+
+        };
 
     std::list<GraphIndex> generatePath();
 
