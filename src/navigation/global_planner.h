@@ -51,12 +51,16 @@ struct GraphIndex {
 
     bool operator<(const GraphIndex& rhs) const
     {
-           if (this->x >= rhs.x)
+           if (this->x > rhs.x)
                return false;
-           if (this->y >= rhs.y)
-               return false;
-           if (this->orient >= rhs.orient)
-               return false;
+           else if (this->x == rhs.x) {
+               if (this->y > rhs.y)
+                   return false;
+               else if (this->y == rhs.y) {
+                   if (this->orient >= rhs.orient)
+                       return false;
+               }
+           }
            return true;
     };
 
