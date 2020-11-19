@@ -26,6 +26,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <vector>
+#include <algorithm>
 
 #include "glog/logging.h"
 #include "gflags/gflags.h"
@@ -184,10 +185,10 @@ planning::Graph test() {
 }
 
 std::list<planning::GraphIndex> navtest(planning::Graph graph){ 
-  PoseSE2 start(0, 25, -7.15);
+  PoseSE2 start(-25, 6, 0);
   //start.loc = robot_loc_;
   //start.angle = robot_angle_;
-  PoseSE2 goal(10, 50, -7.15);
+  PoseSE2 goal(-5, 20, 0);
   //goal.loc = nav_goal_loc_;
   //goal.angle = nav_goal_angle_;
 
@@ -196,7 +197,7 @@ std::list<planning::GraphIndex> navtest(planning::Graph graph){
   return gplan.generatePath();
 }
 
-void visualizeGraph(planning::Graph graph) {
+void visualizeGraph(planning::Graph graph){//, std::list<planning::GraphIndex> plan) {
 
     planning::Vertices V = graph.GetVertices();
     visualization::ClearVisualizationMsg(map_viz_msg_);
@@ -212,10 +213,16 @@ void visualizeGraph(planning::Graph graph) {
                     //geometry::line2f edge(
                     //        graph.GetLocFromVertexIndex(x_id,y_id),
                     //       graph.GetLocFromVertexIndex(neighbor.x,neighbor.y));
+                    uint32_t color = 0x000000;
+                    /*auto it = std::find(plan.begin(), plan.end(), neighbor);
+                    auto it2 = std::find(plan.begin(), plan.end(), curr_vertex);
+                    if(it != plan.end() && it2!= plan.end()){
+                      color = 0x00008;
+                      }*/
                     visualization::DrawLine(
                             graph.GetLocFromVertexIndex(x_id,y_id),
                             graph.GetLocFromVertexIndex(neighbor.x,neighbor.y),
-                            0x000000,
+                            color,
                             map_viz_msg_);
                 }
             }
@@ -249,11 +256,13 @@ int main(int argc, char** argv) {
 
 
   RateLoop loop(20.0);
-  //planning::Graph graph = test();
+  planning::Graph graph = test();
+  std::list<planning::GraphIndex> Astar = navtest(graph);
   while (run_ && ros::ok()) {
     ros::spinOnce();
     navigation_->Run();
-    //visualizeGraph(graph);
+    //visualizeGraph(graph, Astar);
+    visualizeGraph(graph);
     loop.Sleep();
 
   }

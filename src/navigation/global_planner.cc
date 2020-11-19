@@ -195,18 +195,25 @@ namespace planning {
 
         while(!frontier_.empty()){
             GraphIndex current = frontier_.top().second;
+            cout << "Start\t X id:" << start_.x << " Start\t Y id:" << start_.y << std::endl;
+            cout << "Goal\t X id:" << goal_.x << " Goal\t Y id:" << goal_.y << std::endl;
+            cout << "Current X id:" << current.x << " Current Y id:" << current.y << std::endl;
+            cout << "Cost so far size: " << cost_so_far_.size() << std::endl;
             if(current == goal_){
                 break;
             }
             
             std::list<GraphIndex> neighbors = graph_.GetVertexNeighbors(current);
-            for(auto const& neighbor : neighbors){
+            for(auto &neighbor : neighbors){
+                cout << "Neighbor: " << "X id:" << neighbor.x << " Y id:" << neighbor.y << std::endl;
                 double new_cost = cost_so_far_[current] + A_star::calcCost(current, neighbor);
-                if(new_cost < cost_so_far_[neighbor] || cost_so_far_.find(neighbor) == cost_so_far_.end()){
+                cout << "Neighbor cost:" << new_cost << " Current Cost:" << cost_so_far_[current] << std::endl;
+                if(cost_so_far_.find(neighbor) == cost_so_far_.end() || new_cost < cost_so_far_[neighbor]){
                     cost_so_far_[neighbor] = new_cost;
                     double priority = new_cost + A_star::calcHeuristic(neighbor);
                     frontier_.emplace(priority, neighbor);
                     came_from_[neighbor] = current;
+                    cout << "New cost found" << std::endl;
                 }
             }
         } 
