@@ -188,7 +188,7 @@ std::list<planning::GraphIndex> navtest(planning::Graph graph){
   PoseSE2 start(-25, 6, 0);
   //start.loc = robot_loc_;
   //start.angle = robot_angle_;
-  PoseSE2 goal(-5, 20, 0);
+  PoseSE2 goal(35, 12, 0);
   //goal.loc = nav_goal_loc_;
   //goal.angle = nav_goal_angle_;
 
@@ -197,7 +197,7 @@ std::list<planning::GraphIndex> navtest(planning::Graph graph){
   return gplan.generatePath();
 }
 
-void visualizeGraph(planning::Graph graph){//, std::list<planning::GraphIndex> plan) {
+void visualizeGraph(planning::Graph graph){
 
     planning::Vertices V = graph.GetVertices();
     visualization::ClearVisualizationMsg(map_viz_msg_);
@@ -213,16 +213,10 @@ void visualizeGraph(planning::Graph graph){//, std::list<planning::GraphIndex> p
                     //geometry::line2f edge(
                     //        graph.GetLocFromVertexIndex(x_id,y_id),
                     //       graph.GetLocFromVertexIndex(neighbor.x,neighbor.y));
-                    uint32_t color = 0x000000;
-                    /*auto it = std::find(plan.begin(), plan.end(), neighbor);
-                    auto it2 = std::find(plan.begin(), plan.end(), curr_vertex);
-                    if(it != plan.end() && it2!= plan.end()){
-                      color = 0x00008;
-                      }*/
                     visualization::DrawLine(
                             graph.GetLocFromVertexIndex(x_id,y_id),
                             graph.GetLocFromVertexIndex(neighbor.x,neighbor.y),
-                            color,
+                            0x0000000,
                             map_viz_msg_);
                 }
             }
@@ -232,6 +226,17 @@ void visualizeGraph(planning::Graph graph){//, std::list<planning::GraphIndex> p
         }
     }
     visualization_pub_.publish(map_viz_msg_);
+}
+
+void visualizePath(planning::Graph graph, std::list<planning::GraphIndex> plan){
+  for(const auto& node : plan)
+  {
+    Eigen::Vector2f node_loc = graph.GetLocFromVertexIndex(node.x,node.y);
+    std::cout << "[" << node.x << " " << node.y << "] ";
+    visualization::DrawCross(node_loc, 0.25, 0x000FF, map_viz_msg_);
+  }
+  std::cout << std::endl;
+  visualization_pub_.publish(map_viz_msg_);
 }
 
 int main(int argc, char** argv) {
@@ -262,7 +267,9 @@ int main(int argc, char** argv) {
     ros::spinOnce();
     navigation_->Run();
     //visualizeGraph(graph, Astar);
-    visualizeGraph(graph);
+    visualizePath(graph, Astar);
+    std::cout << "Astar size: " << Astar.size() << std::endl;
+    //visualizeGraph(graph);
     loop.Sleep();
 
   }

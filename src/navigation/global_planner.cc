@@ -195,6 +195,7 @@ namespace planning {
 
         while(!frontier_.empty()){
             GraphIndex current = frontier_.top().second;
+            frontier_.pop();
             cout << "Start\t X id:" << start_.x << " Start\t Y id:" << start_.y << std::endl;
             cout << "Goal\t X id:" << goal_.x << " Goal\t Y id:" << goal_.y << std::endl;
             cout << "Current X id:" << current.x << " Current Y id:" << current.y << std::endl;
