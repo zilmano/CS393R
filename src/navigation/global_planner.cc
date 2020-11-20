@@ -198,7 +198,7 @@ namespace planning {
             cout << "Start\t X id:" << start_.x << " Start\t Y id:" << start_.y << std::endl;
             cout << "Goal\t X id:" << goal_.x << " Goal\t Y id:" << goal_.y << std::endl;
             cout << "Current X id:" << current.x << " Current Y id:" << current.y << std::endl;
-            cout << "Cost so far size: " << cost_so_far_.size() << std::endl;
+            cout << "Cost_so_far size: " << cost_so_far_.size() << std::endl;
             if(current == goal_){
                 break;
             }
