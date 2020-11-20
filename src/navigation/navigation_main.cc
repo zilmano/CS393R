@@ -26,6 +26,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <vector>
+#include <algorithm>
 
 #include "glog/logging.h"
 #include "gflags/gflags.h"
@@ -183,7 +184,20 @@ planning::Graph test() {
 
 }
 
-void visualizeGraph(planning::Graph graph) {
+std::list<planning::GraphIndex> navtest(planning::Graph graph){ 
+  PoseSE2 start(-25, 6, 0);
+  //start.loc = robot_loc_;
+  //start.angle = robot_angle_;
+  PoseSE2 goal(35, 12, 0);
+  //goal.loc = nav_goal_loc_;
+  //goal.angle = nav_goal_angle_;
+
+  planning::A_star gplan(graph, start, goal);
+
+  return gplan.generatePath();
+}
+
+void visualizeGraph(planning::Graph graph){
 
     planning::Vertices V = graph.GetVertices();
     visualization::ClearVisualizationMsg(map_viz_msg_);
@@ -202,7 +216,7 @@ void visualizeGraph(planning::Graph graph) {
                     visualization::DrawLine(
                             graph.GetLocFromVertexIndex(x_id,y_id),
                             graph.GetLocFromVertexIndex(neighbor.x,neighbor.y),
-                            0x000000,
+                            0x0000000,
                             map_viz_msg_);
                 }
             }
@@ -212,6 +226,17 @@ void visualizeGraph(planning::Graph graph) {
         }
     }
     visualization_pub_.publish(map_viz_msg_);
+}
+
+void visualizePath(planning::Graph graph, std::list<planning::GraphIndex> plan){
+  for(const auto& node : plan)
+  {
+    Eigen::Vector2f node_loc = graph.GetLocFromVertexIndex(node.x,node.y);
+    std::cout << "[" << node.x << " " << node.y << "] ";
+    visualization::DrawCross(node_loc, 0.25, 0x000FF, map_viz_msg_);
+  }
+  std::cout << std::endl;
+  visualization_pub_.publish(map_viz_msg_);
 }
 
 int main(int argc, char** argv) {
@@ -236,10 +261,14 @@ int main(int argc, char** argv) {
 
 
   RateLoop loop(20.0);
-  //planning::Graph graph = test();
+  planning::Graph graph = test();
+  std::list<planning::GraphIndex> Astar = navtest(graph);
   while (run_ && ros::ok()) {
     ros::spinOnce();
     navigation_->Run();
+    //visualizeGraph(graph, Astar);
+    visualizePath(graph, Astar);
+    std::cout << "Astar size: " << Astar.size() << std::endl;
     //visualizeGraph(graph);
     loop.Sleep();
 

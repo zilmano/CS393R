@@ -188,7 +188,58 @@ namespace planning {
           return 2*M_PI*(1+frac);
     }
 
+    std::list<GraphIndex> A_star::generatePath(){
+        frontier_.emplace(0,start_);
+        came_from_[start_] = start_;
+        cost_so_far_[start_] = 0;
 
+        while(!frontier_.empty()){
+            GraphIndex current = frontier_.top().second;
+            frontier_.pop();
+            cout << "Start\t X id:" << start_.x << " Start\t Y id:" << start_.y << std::endl;
+            cout << "Goal\t X id:" << goal_.x << " Goal\t Y id:" << goal_.y << std::endl;
+            cout << "Current X id:" << current.x << " Current Y id:" << current.y << std::endl;
+            cout << "Cost_so_far size: " << cost_so_far_.size() << std::endl;
+            if(current == goal_){
+                break;
+            }
+            
+            std::list<GraphIndex> neighbors = graph_.GetVertexNeighbors(current);
+            for(auto &neighbor : neighbors){
+                cout << "Neighbor: " << "X id:" << neighbor.x << " Y id:" << neighbor.y << std::endl;
+                double new_cost = cost_so_far_[current] + A_star::calcCost(current, neighbor);
+                cout << "Neighbor cost:" << new_cost << " Current Cost:" << cost_so_far_[current] << std::endl;
+                if(cost_so_far_.find(neighbor) == cost_so_far_.end() || new_cost < cost_so_far_[neighbor]){
+                    cost_so_far_[neighbor] = new_cost;
+                    double priority = new_cost + A_star::calcHeuristic(neighbor);
+                    frontier_.emplace(priority, neighbor);
+                    came_from_[neighbor] = current;
+                    cout << "New cost found" << std::endl;
+                }
+            }
+        } 
+
+        std::list<GraphIndex> path;
+        GraphIndex curr = goal_;
+        while(curr != start_){
+            path.push_front(came_from_[curr]);
+            curr = came_from_[curr];
+        }
+        return path;
+    }
+
+    double A_star::calcCost(const GraphIndex& current, const GraphIndex& next){
+        return std::sqrt(std::pow(next.x - current.x, 2) + std::pow(next.y - current.y, 2)*1.0);
+    }
+
+    double A_star::calcHeuristic(const GraphIndex& next){
+        return std::sqrt(std::pow(goal_.x - next.x, 2) + std::pow(goal_.y - next.y, 2)*1.0);
+    }
+
+    void A_star::findStartAndGoalVertex(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
+        start_ = graph_.GetClosestVertex(start);
+        goal_ = graph_.GetClosestVertex(goal);
+    }
 
 }
 
