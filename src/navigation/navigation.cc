@@ -444,16 +444,16 @@ namespace navigation {
         plan_ = glob_planner_.generatePath(start, goal);
 
         //Visualize path
-        for(const auto& node : plan_)
+        /*for(const auto& node : plan_)
         {
             Eigen::Vector2f node_loc = graph_.GetLocFromVertexIndex(node.x,node.y);
             std::cout << "[" << node.x << " " << node.y << "] ";
             visualization::DrawCross(node_loc, 0.25, 0x000FF, global_viz_msg_);
         }
         std::cout << std::endl;
-
+        */
         viz_pub_.publish(local_viz_msg_);
-        viz_pub_.publish(global_viz_msg_);
+        //viz_pub_.publish(global_viz_msg_);
 
         step_num_++;
 
