@@ -85,7 +85,6 @@ namespace planning {
            neighbors.push_back(GraphIndex(index.x-1,index.y,index.orient,  false));
            neighbors.push_back(GraphIndex(index.x-1,index.y-1,index.orient, false));
            neighbors.push_back(GraphIndex(index.x,index.y-1,index.orient, false));
-           neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient, false));
        } else if (num_of_orient_ == 4) {
            switch (index.orient) {
               case 0:
@@ -188,13 +187,17 @@ namespace planning {
           return 2*M_PI*(1+frac);
     }
 
-    std::list<GraphIndex> A_star::generatePath(){
+    std::list<GraphIndex> A_star::generatePath(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
+        findStartAndGoalVertex(start, goal);
+
         frontier_.emplace(0,start_);
         came_from_[start_] = start_;
         cost_so_far_[start_] = 0;
-
-        while(!frontier_.empty()){
+        int i = 0;
+        cout << endl;
+        while(!frontier_.empty() && i < 10){
             GraphIndex current = frontier_.top().second;
+            frontier_.pop();
             cout << "Start\t X id:" << start_.x << " Start\t Y id:" << start_.y << std::endl;
             cout << "Goal\t X id:" << goal_.x << " Goal\t Y id:" << goal_.y << std::endl;
             cout << "Current X id:" << current.x << " Current Y id:" << current.y << std::endl;
@@ -208,6 +211,9 @@ namespace planning {
                 cout << "Neighbor: " << "X id:" << neighbor.x << " Y id:" << neighbor.y << std::endl;
                 double new_cost = cost_so_far_[current] + A_star::calcCost(current, neighbor);
                 cout << "Neighbor cost:" << new_cost << " Current Cost:" << cost_so_far_[current] << std::endl;
+                std::map<GraphIndex, double>::const_iterator cost_itr = cost_so_far_.find(neighbor);
+                if(cost_so_far_.find(neighbor) != cost_so_far_.end())
+                    cout << "   found neighbor" << cost_itr->first.x << " " << cost_itr->first.y << " " << cost_itr->first.orient << " " << cost_itr->second << " " << endl;
                 if(cost_so_far_.find(neighbor) == cost_so_far_.end() || new_cost < cost_so_far_[neighbor]){
                     cost_so_far_[neighbor] = new_cost;
                     double priority = new_cost + A_star::calcHeuristic(neighbor);
@@ -216,6 +222,7 @@ namespace planning {
                     cout << "New cost found" << std::endl;
                 }
             }
+            i++;
         } 
 
         std::list<GraphIndex> path;

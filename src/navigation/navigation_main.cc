@@ -192,9 +192,9 @@ std::list<planning::GraphIndex> navtest(planning::Graph graph){
   //goal.loc = nav_goal_loc_;
   //goal.angle = nav_goal_angle_;
 
-  planning::A_star gplan(graph, start, goal);
+  planning::A_star gplan(graph);
 
-  return gplan.generatePath();
+  return gplan.generatePath(start, goal);
 }
 
 void visualizeGraph(planning::Graph graph){//, std::list<planning::GraphIndex> plan) {
@@ -240,7 +240,20 @@ int main(int argc, char** argv) {
   // Initialize ROS.
   ros::init(argc, argv, "navigation", ros::init_options::NoSigintHandler);
   ros::NodeHandle n;
-  navigation_ = new Navigation(FLAGS_map, &n);
+
+  navigation::NavParams params;
+  params.plan_grid_pitch = 0.25;
+  params.plan_x_start = -50;
+  params.plan_x_end = 50;
+  params.plan_y_start = -50;
+  params.plan_y_end = 50;
+  params.plan_num_of_orient = 1;
+  params.plan_margin_to_wall = 0.3;
+  params.replan_dist = 2.5;
+  params.pure_pursuit_circ_rad = 2;
+
+
+  navigation_ = new Navigation(FLAGS_map, params, &n);
 
   ros::Subscriber velocity_sub =
       n.subscribe(FLAGS_odom_topic, 1, &OdometryCallback);
@@ -258,14 +271,14 @@ int main(int argc, char** argv) {
   RateLoop loop(20.0);
   planning::Graph graph = test();
   std::list<planning::GraphIndex> Astar = navtest(graph);
-  while (run_ && ros::ok()) {
+  /*while (run_ && ros::ok()) {
     ros::spinOnce();
-    navigation_->Run();
+    //navigation_->Run();
     //visualizeGraph(graph, Astar);
-    visualizeGraph(graph);
+    //visualizeGraph(graph);
     loop.Sleep();
 
-  }
+  }*/
   delete navigation_;
   return 0;
 }

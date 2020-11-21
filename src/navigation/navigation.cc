@@ -64,7 +64,7 @@ namespace {
 
 namespace navigation {
 
-    Navigation::Navigation(const string &map_file, ros::NodeHandle *n) :
+    Navigation::Navigation(const string &map_file, NavParams params, ros::NodeHandle *n) :
             robot_loc_(0, 0),
             robot_angle_(0),
             robot_vel_(0, 0),
@@ -81,7 +81,8 @@ namespace navigation {
             latency_size_{0},
             state_estimator_{PhysicsConsts::act_latency_portion*PhysicsConsts::default_latency,
                             (1-PhysicsConsts::act_latency_portion)*PhysicsConsts::default_latency,0},
-            collision_planner_(world_) {
+            collision_planner_(world_),
+            nav_params_(params) {
         drive_pub_ = n->advertise<AckermannCurvatureDriveMsg>(
                 "ackermann_curvature_drive", 1);
         viz_pub_ = n->advertise<VisualizationMsg>("visualization", 1);
@@ -91,7 +92,37 @@ namespace navigation {
                 "map", "navigation_global");
         InitRosHeader("base_link", &drive_msg_.header);
         Clock::now();
+
+        vector_map::VectorMap map = LoadMap(map_file);
+        planning::Graph graph(params.plan_grid_pitch,
+                              params.plan_x_start,
+                              params.plan_x_end,
+                              params.plan_y_start,
+                              params.plan_y_end,
+                              params.plan_num_of_orient,
+                              params.plan_margin_to_wall,
+                              map);
+
+        glob_planner_ = A_star(graph);
     }
+
+    vector_map::VectorMap Navigation::LoadMap(const std::string& map_file) {
+        string full_map_file;
+        vector_map::VectorMap map;
+
+        if (map_file.find('.') == string::npos) {
+           full_map_file = "maps/" + map_file + "/" + map_file + ".vectormap.txt";
+        } else {
+           full_map_file = map_file;
+        }
+
+        cout << "Loading map file '" << full_map_file << "'...." << endl;
+        map.Load(full_map_file);
+        cout << "Done loading map." << endl;\
+        return map;
+
+    }
+
 
     void Navigation::SetNavGoal(const Vector2f &loc, float angle) {
     }

@@ -77,7 +77,8 @@ typedef std::pair<double, planning::GraphIndex> element;
 
 class Graph {
 public:
-    Graph(float grid_spacing, int x_start, int x_end, int y_start,
+    explicit Graph() {}; // Just for constuctors of including classes..sucks
+    explicit Graph(float grid_spacing, int x_start, int x_end, int y_start,
           int y_end, int num_of_orient, float margin_to_wall, const vector_map::VectorMap& map):
           grid_spacing_(grid_spacing), x_start_(x_start),x_end_(x_end),
           y_start_(y_start),y_end_(y_end),num_of_orient_(num_of_orient),
@@ -136,21 +137,20 @@ private:
 class A_star{
 
 public:
-    A_star(Graph graph, const navigation::PoseSE2& start, const navigation::PoseSE2& goal):
-          graph_(graph), start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){
-        
-           findStartAndGoalVertex(start, goal);
+    A_star():start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)) {};
+    A_star(Graph graph):
+          graph_(graph), start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){};
 
-        };
-
-    std::list<GraphIndex> generatePath();
+    std::list<GraphIndex> generatePath(const navigation::PoseSE2& start,
+                                       const navigation::PoseSE2& goal);
 
     double calcCost(const GraphIndex& current, const GraphIndex& next);
 
     double calcHeuristic(const GraphIndex& next);
 
 private:
-    void findStartAndGoalVertex(const navigation::PoseSE2& start, const navigation::PoseSE2& goal);
+    void findStartAndGoalVertex(const navigation::PoseSE2& start,
+                                const navigation::PoseSE2& goal);
 
 private:
     Graph graph_;   
