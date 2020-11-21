@@ -94,7 +94,7 @@ namespace navigation {
         Clock::now();
 
         vector_map::VectorMap map = LoadMap(map_file);
-        planning::Graph graph(params.plan_grid_pitch,
+        graph_ = Graph(params.plan_grid_pitch,
                               params.plan_x_start,
                               params.plan_x_end,
                               params.plan_y_start,
@@ -103,7 +103,7 @@ namespace navigation {
                               params.plan_margin_to_wall,
                               map);
 
-        glob_planner_ = A_star(graph);
+        glob_planner_ = A_star(graph_);
     }
 
     vector_map::VectorMap Navigation::LoadMap(const std::string& map_file) {
@@ -125,6 +125,8 @@ namespace navigation {
 
 
     void Navigation::SetNavGoal(const Vector2f &loc, float angle) {
+        nav_goal_loc_ = loc;
+        nav_goal_angle_ = angle;
     }
 
     void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle) {
@@ -385,6 +387,7 @@ namespace navigation {
         double timestamp = ros::Time::now().toSec() - start_timestamp;
 
         visualization::ClearVisualizationMsg(local_viz_msg_);
+        visualization::ClearVisualizationMsg(global_viz_msg_);
         //state_estimator_.update_estimation(robot_loc_,robot_angle_,timestamp);
         state_estimator_.update_estimation(Vector2f(0,0),0, timestamp);
         estimate_pose_local_frame_ =
@@ -435,8 +438,22 @@ namespace navigation {
                                     laser_pcloud_local_frame_,
                                     viz_pc);
         //visualization::DrawPointCloud(viz_pc, 0xFF000000, local_viz_msg_);
+        PoseSE2 start(robot_loc_.x(),robot_loc_.y(),0);
+        PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
+
+        plan_ = glob_planner_.generatePath(start, goal);
+
+        //Visualize path
+        for(const auto& node : plan_)
+        {
+            Eigen::Vector2f node_loc = graph_.GetLocFromVertexIndex(node.x,node.y);
+            std::cout << "[" << node.x << " " << node.y << "] ";
+            visualization::DrawCross(node_loc, 0.25, 0x000FF, global_viz_msg_);
+        }
+        std::cout << std::endl;
 
         viz_pub_.publish(local_viz_msg_);
+        viz_pub_.publish(global_viz_msg_);
 
         step_num_++;
 

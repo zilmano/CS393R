@@ -41,6 +41,7 @@ namespace ros {
 }  // namespace ros
 
 using planning::A_star;
+using planning::Graph;
 
 namespace navigation {
 struct PathOption {
@@ -158,7 +159,10 @@ class Navigation {
   CollisionPlanner collision_planner_;
   
   NavParams nav_params_;
+  Graph graph_;
   A_star glob_planner_;
+
+  std::list<planning::GraphIndex> plan_;
 
 };
 
