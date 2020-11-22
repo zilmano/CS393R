@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
 
 
   RateLoop loop(20.0);
-  //planning::Graph graph = test();
+  planning::Graph graph = test();
   std::list<planning::GraphIndex> Astar = navtest(graph);
   while (run_ && ros::ok()) {
     ros::spinOnce();
@@ -284,7 +284,7 @@ int main(int argc, char** argv) {
     std::cout << "Astar size: " << Astar.size() << std::endl;
     loop.Sleep();
 
-  }*/
+  }
   delete navigation_;
   return 0;
 }
