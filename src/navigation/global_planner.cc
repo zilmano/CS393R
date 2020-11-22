@@ -7,9 +7,11 @@
 
 
 #include <cmath>
+#include <iterator>
 #include <shared/global_utils.h>
 #include "global_planner.h"
 #include "vector_map/vector_map.h"
+#include "shared/math/line2d.h"
 
 
 namespace planning {
@@ -231,6 +233,7 @@ namespace planning {
             path.push_front(came_from_[curr]);
             curr = came_from_[curr];
         }
+        curr_path_vertex_ = path.begin();
         return path;
     }
 
@@ -245,6 +248,47 @@ namespace planning {
     void A_star::findStartAndGoalVertex(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
         start_ = graph_.GetClosestVertex(start);
         goal_ = graph_.GetClosestVertex(goal);
+    }
+
+    bool A_star::getPurePursuitCarrot(Eigen::Vector2f center,
+                                      float radius, Eigen::Vector2f& interim_goal) {
+        if (path_.empty())
+            return false;
+
+        bool intersect_found = false;
+        for (auto path_it = curr_path_vertex_;
+                path_it != std::prev(path_.end()); ++path_it) {
+            GraphIndex curr_vertex_id = *path_it;
+            GraphIndex next_vertex_id = *(std::next(path_it));
+            Eigen::Vector2f curr_vertex_loc = graph_.GetLocFromVertexIndex(
+                    curr_vertex_id.x,
+                    curr_vertex_id.y);
+            Eigen::Vector2f next_vertex_loc = graph_.GetLocFromVertexIndex(
+                                next_vertex_id.x,
+                                next_vertex_id.y);
+
+
+            geometry::line2f path_line(curr_vertex_loc, next_vertex_loc);
+            Eigen::Vector2f intersect_point_1, intersect_point_2;
+            unsigned int num_intersections =
+                    geometry::line_circle_intersect(path_line,
+                                                    center,
+                                                    radius,
+                                                    intersect_point_1,
+                                                    intersect_point_2);
+            if (num_intersections > 0) {
+                if (num_intersections == 1) {
+                   interim_goal = intersect_point_1;
+                } else {
+                   interim_goal = next_vertex_loc;
+                }
+                curr_path_vertex_ = path_it;
+                intersect_found = true;
+            }
+
+        }
+
+      return intersect_found;
     }
 
 }

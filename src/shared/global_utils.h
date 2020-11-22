@@ -396,6 +396,7 @@ namespace geometry {
                intersect_point_2 << x_intersect_2,a*x_intersect_2+b;
            }
       }
+
        Line<T> part_in_circle;
        if (num_intersections < 2) {
            part_in_circle.Set(Eigen::Matrix<T,2,1>(0,0),Eigen::Matrix<T,2,1>(0,0));
@@ -431,6 +432,101 @@ namespace geometry {
        }
 
        return part_in_circle;
+    }
+
+    template <typename T>
+    unsigned int line_circle_intersect(const Line<T>& segment,
+                                       const Eigen::Matrix<T,2,1>& center,
+                                       float radius,
+                                       Eigen::Matrix<T,2,1>& intersect_point_1,
+                                       Eigen::Matrix<T,2,1>& intersect_point_2) {
+
+       if (is_point_in_circle(center, radius, segment.p0) &&
+                is_point_in_circle(center, radius, segment.p1)) {
+           return 0;
+       }
+
+       // Calculate intersection points between circle and segment's line.
+
+       unsigned int num_intersections;
+       if (fabs(segment.p1.x()-segment.p0.x()) < GenConsts::kEpsilon) {
+          /*
+            Solution to equation set
+                  r^2 = (x-c_x)^2 + (y-c_y)^2
+                  x = b
+            is solving the SqEq:
+                  y^2 + -2c_y*y+(b-c_x)^2+c_y^2-R^2) = 0
+          */
+          float y_intersect_1, y_intersect_2;
+          float b = segment.p1.x();
+          num_intersections = math_util::SolveQuadratic(
+                          1.0f,
+                          -2*center.y(),
+                          (math_util::Sq(b-center.x()) +
+                           math_util::Sq(center.y()) -
+                           math_util::Sq(radius)),
+                          &y_intersect_1, &y_intersect_2);
+
+          if (num_intersections == 2) {
+              intersect_point_1 << b,y_intersect_1;
+              intersect_point_2 << b,y_intersect_2;
+          } else if (num_intersections == 1) {
+              intersect_point_1 << b,y_intersect_1;
+          }
+      } else {
+           float x_intersect_1, x_intersect_2;
+           float a = (segment.p1.y()-segment.p0.y())/(segment.p1.x()-segment.p0.x());
+           float b = segment.p1.y() - a*segment.p1.x();
+           /*
+             Solution to equation set
+                   r^2 = (x-c_x)^2 + (y-c_y)^2
+                   y = ax+b
+             is solving the SqEq:
+                   (1+a^2)x^2 + (2ab-2c_x-2c_y*a)x+(c_x^2 + c_y^2 + b^2 - r^2 -2c_y*b = 0
+            */
+           num_intersections = math_util::SolveQuadratic(
+               1+math_util::Sq(a),
+               2*(a*b - center.x() - a*center.y()),
+               math_util::Sq(center.x())+ math_util::Sq(center.y()) +
+               math_util::Sq(b)- math_util::Sq(radius)- 2*b*center.y(),
+               &x_intersect_1, &x_intersect_2);
+
+           if (num_intersections == 2) {
+               intersect_point_1 << x_intersect_1, a*x_intersect_1+b;
+               intersect_point_2 << x_intersect_2, a*x_intersect_2+b;
+           } else if (num_intersections == 1) {
+               intersect_point_1 << x_intersect_1, a*x_intersect_1+b;
+           }
+      }
+
+       if (num_intersections == 0) {
+           return 0;
+       } else if (num_intersections == 1) {
+           return 1;
+       } else {
+           if (!is_point_in_circle(center, radius, segment.p0) &&
+               !is_point_in_circle(center, radius, segment.p1)) {
+               if (IsBetween(segment.p0,segment.p1,
+                             intersect_point_1,
+                             GenConsts::kEpsilon)
+                   && IsBetween(segment.p0,segment.p1,
+                                intersect_point_2,
+                                GenConsts::kEpsilon)) {
+                   return 2;
+               } else {
+                   return 0;
+               }
+           } else {
+               if (IsBetween(segment.p0,segment.p1,
+                             intersect_point_1,
+                             GenConsts::kEpsilon)) {
+                   return 1;
+               } else {
+                   intersect_point_1 = intersect_point_2;
+                   return 1;
+               }
+           }
+       }
     }
 }
 

@@ -148,6 +148,11 @@ public:
 
     double calcHeuristic(const GraphIndex& next);
 
+    bool getPurePursuitCarrot(Eigen::Vector2f center,
+                                         float radius,
+                                         Eigen::Vector2f& interim_goal);
+
+
 private:
     void findStartAndGoalVertex(const navigation::PoseSE2& start,
                                 const navigation::PoseSE2& goal);
@@ -155,6 +160,7 @@ private:
 private:
     Graph graph_;   
     std::list<GraphIndex> path_;
+    std::list<GraphIndex>::iterator curr_path_vertex_;
     GraphIndex start_;
     GraphIndex goal_; 
 
