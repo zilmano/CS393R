@@ -274,14 +274,14 @@ int main(int argc, char** argv) {
 
 
   RateLoop loop(20.0);
-  planning::Graph graph = test();
-  std::list<planning::GraphIndex> Astar = navtest(graph);
+  //planning::Graph graph = test();
+  //std::list<planning::GraphIndex> Astar = navtest(graph);
   while (run_ && ros::ok()) {
     ros::spinOnce();
     navigation_->Run();
     //visualizeGraph(graph, Astar);
-    visualizePath(graph,Astar);
-    std::cout << "Astar size: " << Astar.size() << std::endl;
+    //visualizePath(graph,Astar);
+    //std::cout << "Astar size: " << Astar.size() << std::endl;
     loop.Sleep();
 
   }
