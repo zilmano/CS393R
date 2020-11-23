@@ -160,13 +160,10 @@ private:
 private:
     Graph graph_;   
     std::list<GraphIndex> path_;
-    std::list<GraphIndex>::iterator curr_path_vertex_;
+    std::list<GraphIndex>::const_iterator curr_path_vertex_;
     GraphIndex start_;
     GraphIndex goal_; 
 
-    std::priority_queue<element, std::vector<element>, std::greater<element>> frontier_;
-    std::map<GraphIndex, GraphIndex> came_from_;
-    std::map<GraphIndex, double> cost_so_far_;
 };
 
 

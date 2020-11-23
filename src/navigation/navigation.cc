@@ -125,9 +125,36 @@ namespace navigation {
 
 
     void Navigation::SetNavGoal(const Vector2f &loc, float angle) {
-        nav_goal_loc_ = loc;
-        nav_goal_angle_ = angle;
-    }
+            nav_goal_loc_ = loc;
+            nav_goal_angle_ = angle;
+
+            cout << "Set Nav Goal" << endl << endl;
+
+
+            Eigen::Vector2f carrot_loc;
+            PoseSE2 start(robot_loc_.x(),robot_loc_.y(),0);
+            PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
+            plan_ = glob_planner_.generatePath(start, goal);
+            bool intersects = glob_planner_.getPurePursuitCarrot(
+                    robot_loc_,
+                    nav_params_.pure_pursuit_circ_rad,
+                    carrot_loc);
+            cout << " Pure Pursuit Done." << endl;
+            visualization::ClearVisualizationMsg(global_viz_msg_);
+            if (intersects) {
+              visualization::DrawCross(carrot_loc, 0.5, 0xFF0000, global_viz_msg_);
+              cout << "\"Carrot\" found..." << endl;
+            }
+
+            for(const auto& node : plan_)
+            {
+                Eigen::Vector2f node_loc = graph_.GetLocFromVertexIndex(node.x,node.y);
+                std::cout << "[" << node_loc.x() << " " << node_loc.y() << "] ";
+                visualization::DrawCross(node_loc, 0.15, 0x000FF, global_viz_msg_);
+            }
+            cout << endl;
+
+        }
 
     void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle) {
 
