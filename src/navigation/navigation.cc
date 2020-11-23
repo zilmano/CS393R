@@ -441,7 +441,7 @@ namespace navigation {
         PoseSE2 start(robot_loc_.x(),robot_loc_.y(),0);
         PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
 
-        //plan_ = glob_planner_.generatePath(start, goal);
+        plan_ = glob_planner_.generatePath(start, goal);
 
         //Visualize path
         /*for(const auto& node : plan_)
