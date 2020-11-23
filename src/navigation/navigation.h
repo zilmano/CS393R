@@ -91,7 +91,7 @@ class Navigation {
 
   //Added public methods go in this section
   vector_map::VectorMap LoadMap(const std::string& map_file);
-  float RePlanPath();
+  Eigen::Vector2f RePlanPath();
   float SetOptimalVelocity(float target_dist=0, float curvature = 0);
   void Test();
   

@@ -240,7 +240,8 @@ namespace navigation {
     }
     
     // Oleg TODO:: move this function to the collision planner.
-    float Navigation::RePlanPath() {
+    Eigen::Vector2f Navigation::RePlanPath() {
+            Eigen::Vector2f local_path;
             std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(0.005,1);
             float best_c = 0;
             float best_fpl = 0;
@@ -315,7 +316,9 @@ namespace navigation {
                 visualization::DrawLine(Vector2f(0,0),Vector2f(4,0),0xFF0000,local_viz_msg_);
 
             //visualization::DrawPathOption(best_c, best_fpl,  1, local_viz_msg_);
-            return best_c;
+            local_path.x() = best_fpl;
+            local_path.y() = best_c;
+            return local_path;
         }
 
 
@@ -413,8 +416,8 @@ namespace navigation {
 
         PrintDbg(dbg_msg.str());
 
-        float c = RePlanPath();
-        SetOptimalVelocity(20, c);
+        Eigen::Vector2f local_path = RePlanPath();
+        SetOptimalVelocity(local_path.x(), local_path.y());
 
         drive_pub_.publish(drive_msg_);
 
@@ -441,7 +444,7 @@ namespace navigation {
         PoseSE2 start(robot_loc_.x(),robot_loc_.y(),0);
         PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
 
-        plan_ = glob_planner_.generatePath(start, goal);
+        //plan_ = glob_planner_.generatePath(start, goal);
 
         //Visualize path
         /*for(const auto& node : plan_)

@@ -47,7 +47,7 @@ public:
     }
 
     float update_dist_traveled(float curr_spd, float actuation_latency, float target_dist, float curvature){
-        if(target_dist != _target_dist or curvature != _curvature){
+        if(target_dist != _target_dist or curvature != _curvature or target_dist > PhysicsConsts::radar_max_range){
             _target_dist = target_dist;
             _curvature = curvature;
             _dist_traveled = 0;
