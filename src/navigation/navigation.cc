@@ -348,13 +348,13 @@ namespace navigation {
     float Navigation::SetOptimalVelocity(float target_dist, float curvature) {
         float c_p = 0.01f;
         float epsilon = 0.005f;
-        float actuation_latency = latency_tracker_.estimate_latency() * PhysicsConsts::act_latency_portion;
-        auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
+        //float actuation_latency = PhysicsConsts::act_latency_portion*PhysicsConsts::default_latency;
+        auto spd_inc = PhysicsConsts::default_latency * PhysicsConsts::max_acc;
         float dis2stop = ComputeDis2Stop() + epsilon;
         auto curr_spd = robot_vel_.norm();
 
         // Update the distance traveled. If the target distance changed, the distance traveled would be reset
-        driver.update_dist_traveled(curr_spd, actuation_latency, target_dist, curvature);
+        driver.update_dist_traveled(curr_spd, PhysicsConsts::default_latency, target_dist, curvature);
 
         // update current speed
         driver.update_current_speed(dis2stop, spd_inc, is_initloc_inited_, curr_spd, c_p);
@@ -414,7 +414,7 @@ namespace navigation {
         PrintDbg(dbg_msg.str());
 
         float c = RePlanPath();
-        SetOptimalVelocity(200, c);
+        SetOptimalVelocity(20, c);
 
         drive_pub_.publish(drive_msg_);
 
@@ -441,7 +441,7 @@ namespace navigation {
         PoseSE2 start(robot_loc_.x(),robot_loc_.y(),0);
         PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
 
-        plan_ = glob_planner_.generatePath(start, goal);
+        //plan_ = glob_planner_.generatePath(start, goal);
 
         //Visualize path
         /*for(const auto& node : plan_)
