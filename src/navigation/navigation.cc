@@ -157,9 +157,15 @@ namespace navigation {
         }
 
     void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle) {
+        PoseSE2 local_pose{loc, angle};
+        PoseSE2 goal_pose{nav_goal_loc_, nav_goal_angle_};
+        try {
+            if ((loc - odom_loc_).norm() > 2 && !plan_.empty()) plan_ = glob_planner_.generatePath(local_pose, goal_pose);
+        } catch (...) {
+            ROS_WARN("Unsuccessful global plan");
+        }
         odom_loc_ = loc;
         odom_angle_ = angle;
-
     }
 
     void Navigation::UpdateOdometry(const Vector2f &loc,
@@ -524,7 +530,6 @@ namespace navigation {
         //Particle filter
         PoseSE2 local_pose{odom_loc_, odom_angle_};
         PoseSE2 goal_pose{nav_goal_loc_, nav_goal_angle_};
-        plan_ = glob_planner_.generatePath(local_pose, goal_pose);
 
 
         std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(5e-3, 1);
@@ -532,7 +537,15 @@ namespace navigation {
         Vector2f local_goal, localgoal_localframe;
         heuristics.reserve(candidate_curvatures.size());
 
-        bool localplan_succ = glob_planner_.getPurePursuitCarrot(local_pose.loc, nav_params_.pure_pursuit_circ_rad, local_goal);
+        bool localplan_succ = false;
+        try {
+
+             localplan_succ = glob_planner_.getPurePursuitCarrot(local_pose.loc, nav_params_.pure_pursuit_circ_rad,
+                                                                     local_goal);
+        }
+        catch (...) {
+            return;
+        }
         if (localplan_succ) {
             localgoal_localframe = tf::transform_point_to_loc_frame(local_pose, local_goal);
             visualization::DrawCross(localgoal_localframe, 1.3, 0xFF0000, local_viz_msg_);
@@ -555,10 +568,10 @@ namespace navigation {
                     else break;
                 }
             float best_cur = NAN, best_heu = -INFINITY;
-            printf("=========================\n");
+            //printf("=========================\n");
             for (auto & candidate : heuristics) {
-                printf("Cur: %.2f, Clr: %.2f, dis2goal: %.2f, fpl: %.2f\n",
-                       candidate.curvature, candidate.clearance, candidate.dis2goal, candidate.fpl);
+                //printf("Cur: %.2f, Clr: %.2f, dis2goal: %.2f, fpl: %.2f\n",
+                       //candidate.curvature, candidate.clearance, candidate.dis2goal, candidate.fpl);
                 float cand_heu = candidate.fpl + candidate.clearance - candidate.dis2goal;
                 if (cand_heu > -INFINITY) {
                     if (!isfinite(candidate.fpl)) cand_heu = candidate.clearance + 100;
@@ -587,7 +600,7 @@ namespace navigation {
         std::cout << a << std::endl;
          */
         //Test();
-
+/*
         if (!is_initloc_inited_)
             return;
         //static double start_timestamp;
@@ -600,7 +613,7 @@ namespace navigation {
         visualization::ClearVisualizationMsg(local_viz_msg_);
         visualization::ClearVisualizationMsg(global_viz_msg_);
         //state_estimator_.update_estimation(robot_loc_,robot_angle_,timestamp);
-
+*/
         //state_estimator_.update_estimation(Vector2f(0,0),0, timestamp);
         //estimate_pose_local_frame_ =
         //    state_estimator_.estimate_state_cmd_actuation_time(timestamp);
@@ -624,6 +637,7 @@ namespace navigation {
         //        << std::endl;
         //PrintDbg(dbg_msg.str());
 
+        /*
         Vector2f carrot(5,0);
         Vector2f local_path = PlanLocalPath(carrot);
         SetOptimalVelocity(200, local_path(1));
@@ -646,6 +660,8 @@ namespace navigation {
         l = CarDims::l + CarDims::default_safety_margin * 2;
         visualization::DrawCar(w, l, 0x0000FF00, local_viz_msg_);
         std::vector<Vector2f> viz_pc;
+
+         */
         //state_estimator_.transform_p_cloud_tf_obs_to_act(
         //                           laser_pcloud_local_frame_,
         //                           viz_pc);
@@ -663,11 +679,11 @@ namespace navigation {
         //    visualization::DrawCross(node_loc, 0.25, 0x000FF, global_viz_msg_);
         //}
         //std::cout << std::endl;
-
+/*
         viz_pub_.publish(local_viz_msg_);
 
         step_num_++;
-
+*/
         /*float c_p = 0.01f;
         float epsilon = 0.005f;
         auto spd_inc = latency_tracker_.estimate_latency() * PhysicsConsts::max_acc;
