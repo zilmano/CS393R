@@ -194,7 +194,7 @@ namespace navigation {
 
     float Navigation::ComputeDis2Stop() {
         float latency = latency_tracker_.estimate_latency();
-        float actuation_latency = latency * PhysicsConsts::act_latency_portion;
+        float actuation_latency = PhysicsConsts::default_latency * PhysicsConsts::act_latency_portion;
         float observation_latency = latency - actuation_latency;
         float curr_spd = robot_vel_.norm();
         float dis2stop = curr_spd * actuation_latency;
@@ -507,7 +507,8 @@ namespace navigation {
         
         drive_msg_.velocity = driver.get_new_velocity();
         drive_msg_.velocity = driver.drive_msg_check(drive_msg_.velocity);
-        drive_msg_.velocity = 1.0;
+        //drive_msg_.velocity = 1.0;
+        std::cout << "Velocity: " << drive_msg_.velocity << std::endl;
         return drive_msg_.velocity;
     }
          
