@@ -337,6 +337,15 @@ namespace geometry {
         return (center-point).norm() < radius + GenConsts::kEpsilon;
     }
 
+    inline float normalize_angle(float angle) {
+        double decimal;
+        float frac = modf(angle/(2*M_PI), &decimal);
+        if (angle >= 0)
+          return frac*2*M_PI;
+        else
+          return 2*M_PI*(1+frac);
+    }
+
     template <typename T>
     Line<T> get_sub_segment_in_circle(const Line<T>& segment,
                                       const Eigen::Matrix<T,2,1>& center,
@@ -528,6 +537,69 @@ namespace geometry {
            }
        }
     }
+
+    inline float dist_arc_point(Eigen::Vector2f center, float r, Eigen::Vector2f point,
+                                float start_angle, float end_angle, bool& is_end_point) {
+        if (start_angle >= end_angle) {
+            cout << "ERROR: geometry::dist_arc_point:: end angle has to be bigger then start angle";
+            throw "ERROR: geometry::dist_arc_point:: end angle has to be bigger then start angle";
+        }
+
+        // angle of vector between point and center
+        float angle = std::atan2(point.y()-center.y(),point.x()-center.x());
+
+        //if start_angle is positive, we need to reverse angle if it is negative, so that the condition bellow will work
+        if (start_angle >= 0 ) {
+            start_angle = normalize_angle(start_angle);
+            if ((end_angle-2*M_PI) < 0.0000001)
+                end_angle = normalize_angle(end_angle);
+            if (angle < 0)
+                 angle = 2*M_PI+angle;
+        }
+
+        //cout << "dist_arc_point::angle:" << angle << " start_angle:"
+        //      << start_angle << " end_angle" << end_angle << endl;
+
+        if (angle >= start_angle && angle <= end_angle) {
+            // Line of point-2-center crosses the arc, then dist is just the dist to the cross point
+            //cout << "dist_arc_point:: in arc" << endl;
+            is_end_point = false;
+            return fabs((point-center).norm()-r);
+
+        } else {
+            // Line of point2center not on the arc, then min dist is the dist to one of the start/end point of the arc
+            // Find point on cirle at start/end angle
+            Eigen::Vector2f start_p(center.x() + std::cos(start_angle)*r,
+                                    center.y() + std::sin(start_angle)*r);
+            float dist2start = (point-start_p).norm();
+            Eigen::Vector2f end_p(center.x() + std::cos(end_angle)*r,
+                                  center.y() + std::sin(end_angle)*r);
+            float dist2end = (point-end_p).norm();
+            is_end_point = true;
+            return std::min(dist2end,dist2start);
+        }
+    }
+
+    inline float dist_line_point(Eigen::Vector2f l0, Eigen::Vector2f l1,
+                                 Eigen::Vector2f point, bool& is_end_point) {
+        Eigen::Vector2f proj_point = ProjectPointOntoLineSegment(point,l0,l1);
+        if (proj_point == l0 || proj_point == l1) {
+            float dist2start = (point-l0).norm();
+            float dist2end = (point-l1).norm();
+            is_end_point = true;
+            return std::min(dist2end,dist2start);
+        } else {
+            Eigen::Vector2f vec_to_point = (point-l0);
+            float angle_between_vecs = std::acos(
+                    vec_to_point.dot((l1-l0))/(vec_to_point.norm()*(l1-l0).norm())
+            );
+
+            is_end_point = false;
+            return fabs(std::sin(angle_between_vecs)*vec_to_point.norm());
+
+        }
+    }
+
 }
 
 #endif // GLOBAL_UTILS_H_

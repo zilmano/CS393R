@@ -49,6 +49,7 @@
 
 #include "navigation.h"
 #include "global_planner.h"
+#include "shared/math/geometry.h"
 
 // OLEG TODO remove this include it is for debug:
 #include "vector_map/vector_map.h"
@@ -76,7 +77,7 @@ DEFINE_string(loc_topic, "localization", "Name of ROS topic for localization");
 DEFINE_string(init_topic,
               "initialpose",
               "Name of ROS topic for initialization");
-DEFINE_string(map, "maps/GDC1.txt", "Name of vector map file");
+DEFINE_string(map, "maps/OBSTACLE_COURSE/OBSTACLE_COURSE.vectormap.txt", "Name of vector map file");
 
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
@@ -184,6 +185,24 @@ planning::Graph test() {
 
 }
 
+void test_geomutils() {
+    float r = 2;
+    Eigen::Vector2f center(0,2);
+    Eigen::Vector2f p(0,4);
+    bool is_end_point;
+    float dist = geometry::dist_arc_point(center, r, p, -M_PI/2, M_PI, is_end_point);
+    cout << "dist:" << dist << endl;
+
+    Vector2f a(0,0);
+    Vector2f b(4,0);
+    p = Vector2f(6,3);
+    cout << "prj:" << geometry::ProjectPointOntoLineSegment(p,a,b) << endl;
+    cout << "point:" << geometry::dist_line_point(a,b,p, is_end_point) << endl;
+    cout << "is end:" << is_end_point << endl;
+
+}
+
+
 std::list<planning::GraphIndex> navtest(planning::Graph graph){ 
   PoseSE2 start(-25, 6, 0);
   //start.loc = robot_loc_;
@@ -247,7 +266,7 @@ int main(int argc, char** argv) {
   ros::NodeHandle n;
 
   navigation::NavParams params;
-  params.plan_grid_pitch = 0.25;
+  params.plan_grid_pitch = 0.5;
   params.plan_x_start = -50;
   params.plan_x_end = 50;
   params.plan_y_start = -50;
@@ -256,6 +275,7 @@ int main(int argc, char** argv) {
   params.plan_margin_to_wall = 0.3;
   params.replan_dist = 2.5;
   params.pure_pursuit_circ_rad = 2;
+  params.obs_min_clearance = 0.1;
 
 
   navigation_ = new Navigation(FLAGS_map, params, &n);
@@ -276,6 +296,7 @@ int main(int argc, char** argv) {
   RateLoop loop(20.0);
   //planning::Graph graph = test();
   //std::list<planning::GraphIndex> Astar = navtest(graph);
+  //test_geomutils();
   while (run_ && ros::ok()) {
     ros::spinOnce();
     navigation_->Run();

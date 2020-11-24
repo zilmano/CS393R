@@ -63,6 +63,10 @@ struct NavParams {
   float plan_margin_to_wall;
   float replan_dist;
   float pure_pursuit_circ_rad;
+  float w_fpl;
+  float w_clr;
+  float w_dist;
+  float obs_min_clearance;
 };
 
 class Navigation {
@@ -91,11 +95,17 @@ class Navigation {
 
   //Added public methods go in this section
   vector_map::VectorMap LoadMap(const std::string& map_file);
-  Eigen::Vector2f RePlanPath();
+  float FindDistToGoal(float curvature, float arc_length,
+                       Vector2f goal_loc, bool count_bounday_points=false);
+  float FindMinClearance(float c, float arc_length,
+                         const std::vector<Vector2f>& work_point_cloud);
+  Eigen::Vector2f PlanLocalPath(Vector2f goal_loc);
   float SetOptimalVelocity(float target_dist=0, float curvature = 0);
   void Test();
   
-  // Added private methods go in this section
+
+
+ // Added private methods go in this section
  private:
 
    float ComputeDis2Stop();

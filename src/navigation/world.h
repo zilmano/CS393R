@@ -13,7 +13,7 @@
 #include "eigen3/Eigen/Dense"
 #include <vector>
 #include <memory>
-
+#include <iostream>
 class World {
 public:
 	/*
@@ -28,7 +28,10 @@ public:
 				  time_sample_counter_(0) {};
 
 	std::vector<Eigen::Vector2f>& get_latest_point_cloud_odom_frame() { return latest_pcloud_odom_frame_; };
-	std::vector<Eigen::Vector2f>& get_latest_point_cloud_map_frame() { throw("Not implemented yet.");}
+	std::vector<Eigen::Vector2f>& get_latest_point_cloud_map_frame() {
+	    std::cout << "World::get_latest_point_cloud_map_frame:: Not implemented yet" << std::endl;
+	    throw("Not implemented yet.");
+	}
 
 	void update_obsatcle_data_odom_frame(const std::vector<Eigen::Vector2f>& point_cloud) {
 
@@ -45,12 +48,16 @@ public:
 		// }
 	}
 
-	void update_obbsatcle_data_map_frame(std::vector<Eigen::Vector2f> point_cloud) { throw("Not implemented yet.");}
+	void update_obsatcle_data_map_frame(std::vector<Eigen::Vector2f> point_cloud) {
+	    std::cout << "World::update_obsatcle_data_map_frame:: Not implemented yet" << std::endl;
+	    throw("Not implemented yet.");}
 
 	size_t size() { return latest_pcloud_odom_frame_.size(); }
 
 private:
-	std::vector<Eigen::Vector2f> down_sample_point_cloud(std::vector<Eigen::Vector2f>) { throw("Not implemented yet."); };
+	std::vector<Eigen::Vector2f> down_sample_point_cloud(std::vector<Eigen::Vector2f>) {
+	    std::cout << "World::down_sample_point_cloud:: Not implemented yet" << std::endl;
+	    throw("Not implemented yet."); };
 
 
 private:

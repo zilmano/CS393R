@@ -210,6 +210,7 @@ std::vector<float> CollisionPlanner::generate_candidate_paths(float c_step, floa
         candidates.push_back(0);
         c_step = fabs(c_step);
         if (fabs(c_step) < GenConsts::kEpsilon) {
+            std::cout << "ERROR: ::generate_candidate_paths: c_step must be bigger then zero (by kEpsilon)" << std::endl;
             throw "::generate_candidate_paths: c_step must be bigger then zero (by kEpsilon)";
         }
         float c = c_step;
