@@ -132,12 +132,12 @@ namespace navigation {
 
 
             Eigen::Vector2f carrot_loc;
-            PoseSE2 start(odom_loc_.x(),odom_loc_.y(), odom_angle_);
+            PoseSE2 start(robot_loc_.x(),robot_loc_.y(), robot_angle_);
             PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
             plan_ = glob_planner_.generatePath(start, goal);
             ROS_WARN("SetNav replan done");
             bool intersects = glob_planner_.getPurePursuitCarrot(
-                    odom_loc_,
+                    robot_loc_,
                     nav_params_.pure_pursuit_circ_rad,
                     carrot_loc);
             cout << " Pure Pursuit Done." << endl;
@@ -161,17 +161,25 @@ namespace navigation {
         PoseSE2 local_pose{loc, angle};
         PoseSE2 goal_pose{nav_goal_loc_, nav_goal_angle_};
         bool inrange = false;
+        debug::print_loc(loc," UpdateLocation::Loc");
+        local_pose.pprint("  local Pose:");
+        goal_pose.pprint("  goal pose:");
         try {
             printf("Prior to replanning\n");
+            debug::print_loc(loc," UpdateLocation::Loc");
+
             inrange = (loc - odom_loc_).norm() < 10.;
-            if ((loc - odom_loc_).norm() > 2 && !plan_.empty() && inrange)
+            if ((loc - robot_loc_).norm() > 2 && !plan_.empty() && inrange) {
+                local_pose.pprint("  local Pose just before:");
+                goal_pose.pprint("  goal pose hust before:");
                 plan_ = glob_planner_.generatePath(local_pose, goal_pose);
+            }
         } catch (...) {
             ROS_WARN("Unsuccessful global plan");
         }
         if (inrange) {
-            odom_loc_ = loc;
-            odom_angle_ = angle;
+            robot_loc_ = loc;
+            robot_angle_ = angle;
         }
     }
 
@@ -180,7 +188,7 @@ namespace navigation {
                                     const Vector2f &vel,
                                     float ang_vel) {
         if (!is_initloc_inited_) {
-            init_loc_ = robot_loc_;
+            init_loc_ = odom_loc_;
             // Oleg Question: what is wrong with loc zero, not sure I understand how this works.
             auto is_loc_finite = init_loc_.allFinite();
             auto is_loc_nonzero = !init_loc_.isZero();
@@ -189,8 +197,8 @@ namespace navigation {
                 ROS_INFO("Init loc %f, %f", init_loc_[0], init_loc_[1]);
             }
         }
-        robot_loc_ = loc;
-        robot_angle_ = angle;
+        odom_loc_ = loc;
+        odom_angle_ = angle;
         robot_vel_ = vel;
         robot_omega_ = ang_vel;
 
@@ -231,7 +239,7 @@ namespace navigation {
         for (size_t i = 0; i < laser_pcloud_local_frame_.size(); ++i) {
             Vector2f odom_frame_point =
                 tf::transform_point_to_glob_frame(
-                    PoseSE2(robot_loc_,robot_angle_),
+                    PoseSE2(odom_loc_,odom_angle_),
                     laser_pcloud_local_frame_[i]);
             odom_frame_point_cloud.push_back(odom_frame_point);
         }
@@ -536,7 +544,7 @@ namespace navigation {
             visualization::DrawCross(node_loc, 0.15, 0x000FF, global_viz_msg_);
         }
         //Particle filter
-        PoseSE2 local_pose{odom_loc_, odom_angle_};
+        PoseSE2 local_pose{robot_loc_, robot_angle_};
         PoseSE2 goal_pose{nav_goal_loc_, nav_goal_angle_};
 
 
