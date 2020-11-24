@@ -60,7 +60,6 @@ DEFINE_double(num_particles, 50, "Number of particles");
 namespace {
     ros::Publisher* viz_pub_ = NULL;
     amrl_msgs::VisualizationMsg* viz_msg_ = NULL;
-    ros::Publisher* pfres_pub_ = NULL;
 }
 
 namespace particle_filter {

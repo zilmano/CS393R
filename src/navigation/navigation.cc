@@ -157,6 +157,8 @@ namespace navigation {
         }
 
     void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle) {
+        odom_loc_ = loc;
+        odom_angle_ = angle;
 
     }
 
@@ -199,7 +201,6 @@ namespace navigation {
         float observation_latency = latency - actuation_latency;
         float curr_spd = robot_vel_.norm();
         float dis2stop = curr_spd * actuation_latency;
-        std::cout << "  Actuation Latency: " << actuation_latency << std::endl;
 
         for (curr_spd -= PhysicsConsts::max_acc * observation_latency; curr_spd >= 0.0;
              curr_spd -= PhysicsConsts::max_acc * observation_latency)
@@ -520,13 +521,16 @@ namespace navigation {
             Eigen::Vector2f node_loc = graph_.GetLocFromVertexIndex(node.x,node.y);
             visualization::DrawCross(node_loc, 0.15, 0x000FF, global_viz_msg_);
         }
+        //Particle filter
+        PoseSE2 local_pose{odom_loc_, odom_angle_};
+        PoseSE2 goal_pose{nav_goal_loc_, nav_goal_angle_};
+        plan_ = glob_planner_.generatePath(local_pose, goal_pose);
+
 
         std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(5e-3, 1);
         std::vector<LocalCurvHeu> heuristics;
         Vector2f local_goal, localgoal_localframe;
         heuristics.reserve(candidate_curvatures.size());
-        //Particle filter
-        PoseSE2 local_pose{robot_loc_, robot_angle_};
 
         bool localplan_succ = glob_planner_.getPurePursuitCarrot(local_pose.loc, nav_params_.pure_pursuit_circ_rad, local_goal);
         if (localplan_succ) {

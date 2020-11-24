@@ -153,6 +153,12 @@ void PublishPredictedScan() {
   sprintf(msg, "%f %f %f", robot_loc[0], robot_loc[1], robot_angle);
   strmsg.data = std::string(msg);
   pfresult_publisher_.publish(strmsg);
+
+  amrl_msgs::Localization2DMsg loc_msg;
+  loc_msg.pose.x = robot_loc[0];
+  loc_msg.pose.y = robot_loc[1];
+  loc_msg.pose.theta = robot_angle;
+  localization_publisher_.publish(loc_msg);
 }
 
 void PublishTrajectory() {
