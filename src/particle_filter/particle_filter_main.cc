@@ -33,6 +33,7 @@
 #include "eigen3/Eigen/Geometry"
 #include "amrl_msgs/Localization2DMsg.h"
 #include "amrl_msgs/VisualizationMsg.h"
+#include "std_msgs/String.h"
 #include "gflags/gflags.h"
 #include "geometry_msgs/PoseArray.h"
 #include "sensor_msgs/LaserScan.h"
@@ -81,6 +82,7 @@ DEFINE_string(init_topic,
               "/set_pose",
               "Name of ROS topic for initialization");
 DEFINE_string(map, "", "Map file to use");
+DEFINE_string(pf_topic, "/pf", "Particle filter results");
 
 DECLARE_int32(v);
 
@@ -96,6 +98,7 @@ particle_filter::ParticleFilter particle_filter_;
 ros::Publisher visualization_publisher_;
 ros::Publisher localization_publisher_;
 ros::Publisher laser_publisher_;
+ros::Publisher pfresult_publisher_;
 VisualizationMsg vis_msg_;
 sensor_msgs::LaserScan last_laser_msg_;
 vector_map::VectorMap map_;
@@ -143,6 +146,13 @@ void PublishPredictedScan() {
   for (const Vector2f& p : predicted_scan) {
     DrawPoint(p, kColor, vis_msg_);
   }
+
+  //Publish pf results
+  char msg[512];
+  std_msgs::String strmsg;
+  sprintf(msg, "%f %f %f", robot_loc[0], robot_loc[1], robot_angle);
+  strmsg.data = std::string(msg);
+  pfresult_publisher_.publish(strmsg);
 }
 
 void PublishTrajectory() {
@@ -334,6 +344,8 @@ int main(int argc, char** argv) {
       n.advertise<amrl_msgs::Localization2DMsg>("localization", 1);
   laser_publisher_ =
       n.advertise<sensor_msgs::LaserScan>("scan", 1);
+  pfresult_publisher_ =
+      n.advertise<std_msgs::String>("pf", 128);
 
   particle_filter::PfParams params;
   params.radar_downsample_rate = 20;
