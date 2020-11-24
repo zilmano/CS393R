@@ -391,7 +391,7 @@ namespace navigation {
     Eigen::Vector2f Navigation::PlanLocalPath(Vector2f goal_loc) {
             Eigen::Vector2f local_path;
             std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(0.01,2);
-            float w1 = 1, w2 = 5, w3 =-2;
+            float w1 = 1, w2 = 3, w3 =-2;
             float max_fpl = PhysicsConsts::radar_max_range-2;
             float best_c = 0;
             float best_fpl = 0;
@@ -444,6 +444,7 @@ namespace navigation {
                 cout << "--> Reward fpl " << fpl << " clearance " << clearance << " dist_to_goal " << dist_to_goal << endl;
 
                 reward = w1*fpl + w2*clearance + w3*dist_to_goal;
+                cout << "reward:" << reward << endl;
                 /*if ((candidate == 0 && fabs(fpl-PhysicsConsts::radar_max_range) <
                     PhysicsConsts::radar_noise_std) || std::isinf(fpl)) {
                     if (fabs(candidate) < GenConsts::kEpsilon) {
