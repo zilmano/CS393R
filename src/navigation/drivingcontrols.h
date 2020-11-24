@@ -29,7 +29,9 @@ public:
     // TOC
     void update_current_speed(float dis2stop, float spd_inc, bool initial_loc_init, float curr_spd, float c_p){
         float dis2target = _target_dist - _dist_traveled;        
-        
+        //std::cout << "dis2targ: " << dis2target << std::endl;
+        //std::cout << "dis2stop: " << dis2stop << std::endl;
+        //std::cout << "dis_traveled: " << _dist_traveled << std::endl;
         if (dis2target <= 0 or !initial_loc_init){
             _new_velocity = 0;
         } else if (dis2stop >= dis2target) {
@@ -45,7 +47,7 @@ public:
     }
 
     float update_dist_traveled(float curr_spd, float actuation_latency, float target_dist, float curvature){
-        if(target_dist != _target_dist or curvature != _curvature){
+        if(target_dist != _target_dist or curvature != _curvature or target_dist > PhysicsConsts::radar_max_range){
             _target_dist = target_dist;
             _curvature = curvature;
             _dist_traveled = 0;

@@ -51,6 +51,7 @@ public:
 
     inline PoseSE2 estimate_state_curr_time(double curr_time) {
         if (curr_time != curr_time_) {
+            cout << "ERROR: StateEstimator:: StateEstimator needs to be updated with 'update_estimation()' prior ti running 'estimate_state_for_curr_time()";
             throw "StateEstimator:: StateEstimator needs to be updated with 'update_estimation()' prior ti running 'estimate_state_for_curr_time()";
         }
         return pose_estimates_[pose_est_index_of_curr_step_];
@@ -58,7 +59,8 @@ public:
 
     inline PoseSE2 estimate_state_cmd_actuation_time(double curr_time) {
         if (curr_time != curr_time_) {
-            throw "StateEstimator:: StateEstimator needs to be updated with 'update_estimation()' prior ti running 'estimate_state_for_curr_time()";
+            cout << "ERROR: StateEstimator:: StateEstimator needs to be updated with 'update_estimation()' prior to running 'estimate_state_cmd_actuation_time()";
+            throw "StateEstimator:: StateEstimator needs to be updated with 'update_estimation()' prior to running 'estimate_state_cmd_actuation_time()";
         }
         return actuation_time_pose_estimate_;
     };

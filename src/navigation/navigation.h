@@ -29,6 +29,8 @@
 #include "drivingcontrols.h"
 #include "collisionplanner.h"
 #include "state_estimator.h"
+#include "global_planner.h"
+#include "vector_map/vector_map.h"
 #include <iostream>
 
 #ifndef NAVIGATION_H
@@ -38,9 +40,10 @@ namespace ros {
   class NodeHandle;
 }  // namespace ros
 
+using planning::A_star;
+using planning::Graph;
+
 namespace navigation {
-
-
 struct PathOption {
   float curvature;
   float clearance;
@@ -50,11 +53,27 @@ struct PathOption {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
+struct NavParams {
+  float plan_grid_pitch;
+  int plan_x_start;
+  int plan_x_end;
+  int plan_y_start;
+  int plan_y_end;
+  int plan_num_of_orient;
+  float plan_margin_to_wall;
+  float replan_dist;
+  float pure_pursuit_circ_rad;
+  float w_fpl;
+  float w_clr;
+  float w_dist;
+  float obs_min_clearance;
+};
+
 class Navigation {
  public:
 
    // Constructor
-  explicit Navigation(const std::string& map_file, ros::NodeHandle* n);
+  explicit Navigation(const std::string& map_file, NavParams params, ros::NodeHandle* n);
 
   // Used in callback from localization to update position.
   void UpdateLocation(const Eigen::Vector2f& loc, float angle);
@@ -75,11 +94,18 @@ class Navigation {
   void SetNavGoal(const Eigen::Vector2f& loc, float angle);
 
   //Added public methods go in this section
-  float RePlanPath();
+  vector_map::VectorMap LoadMap(const std::string& map_file);
+  float FindDistToGoal(float curvature, float arc_length,
+                       Vector2f goal_loc, bool count_bounday_points=false);
+  float FindMinClearance(float c, float arc_length,
+                         const std::vector<Vector2f>& work_point_cloud);
+  Eigen::Vector2f PlanLocalPath(Vector2f goal_loc);
   float SetOptimalVelocity(float target_dist=0, float curvature = 0);
   void Test();
   
-  // Added private methods go in this section
+
+
+ // Added private methods go in this section
  private:
 
    float ComputeDis2Stop();
@@ -142,8 +168,14 @@ class Navigation {
   StateEstimator state_estimator_;
   CollisionPlanner collision_planner_;
   
+  NavParams nav_params_;
+  Graph graph_;
+  A_star glob_planner_;
+
+  std::list<planning::GraphIndex> plan_;
+
 };
 
-}  // namespace navigation
+};  // namespace navigation
 
 #endif  // NAVIGATION_H

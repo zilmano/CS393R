@@ -7,9 +7,11 @@
 
 
 #include <cmath>
+#include <iterator>
 #include <shared/global_utils.h>
 #include "global_planner.h"
 #include "vector_map/vector_map.h"
+#include "shared/math/line2d.h"
 
 
 namespace planning {
@@ -85,7 +87,6 @@ namespace planning {
            neighbors.push_back(GraphIndex(index.x-1,index.y,index.orient,  false));
            neighbors.push_back(GraphIndex(index.x-1,index.y-1,index.orient, false));
            neighbors.push_back(GraphIndex(index.x,index.y-1,index.orient, false));
-           neighbors.push_back(GraphIndex(index.x+1,index.y-1,index.orient, false));
        } else if (num_of_orient_ == 4) {
            switch (index.orient) {
               case 0:
@@ -188,43 +189,54 @@ namespace planning {
           return 2*M_PI*(1+frac);
     }
 
-    std::list<GraphIndex> A_star::generatePath(){
-        frontier_.emplace(0,start_);
-        came_from_[start_] = start_;
-        cost_so_far_[start_] = 0;
+    std::list<GraphIndex> A_star::generatePath(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
 
-        while(!frontier_.empty()){
-            GraphIndex current = frontier_.top().second;
-            frontier_.pop();
-            cout << "Start\t X id:" << start_.x << " Start\t Y id:" << start_.y << std::endl;
-            cout << "Goal\t X id:" << goal_.x << " Goal\t Y id:" << goal_.y << std::endl;
-            cout << "Current X id:" << current.x << " Current Y id:" << current.y << std::endl;
-            cout << "Cost_so_far size: " << cost_so_far_.size() << std::endl;
+        findStartAndGoalVertex(start, goal);
+
+        std::priority_queue<element, std::vector<element>, std::greater<element>> frontier;
+        std::map<GraphIndex, GraphIndex> came_from;
+        std::map<GraphIndex, double> cost_so_far;
+
+        frontier.emplace(0,start_);
+        came_from[start_] = start_;
+        cost_so_far[start_] = 0;
+
+        while(!frontier.empty()){
+            GraphIndex current = frontier.top().second;
+            frontier.pop();
+           //cout << "Start\t X id:" << start_.x << " Start\t Y id:" << start_.y << std::endl;
+           // cout << "Goal\t X id:" << goal_.x << " Goal\t Y id:" << goal_.y << std::endl;
+           // cout << "Current X id:" << current.x << " Current Y id:" << current.y << std::endl;
+           // cout << "Cost_so_far size: " << cost_so_far.size() << std::endl;
             if(current == goal_){
                 break;
             }
-            
+
             std::list<GraphIndex> neighbors = graph_.GetVertexNeighbors(current);
             for(auto &neighbor : neighbors){
-                cout << "Neighbor: " << "X id:" << neighbor.x << " Y id:" << neighbor.y << std::endl;
-                double new_cost = cost_so_far_[current] + A_star::calcCost(current, neighbor);
-                cout << "Neighbor cost:" << new_cost << " Current Cost:" << cost_so_far_[current] << std::endl;
-                if(cost_so_far_.find(neighbor) == cost_so_far_.end() || new_cost < cost_so_far_[neighbor]){
-                    cost_so_far_[neighbor] = new_cost;
+                //cout << "Neighbor: " << "X id:" << neighbor.x << " Y id:" << neighbor.y << std::endl;
+                double new_cost = cost_so_far[current] + A_star::calcCost(current, neighbor);
+                //cout << "Neighbor cost:" << new_cost << " Current Cost:" << cost_so_far[current] << std::endl;
+                if(cost_so_far.find(neighbor) == cost_so_far.end() || new_cost < cost_so_far[neighbor]){
+                    cost_so_far[neighbor] = new_cost;
                     double priority = new_cost + A_star::calcHeuristic(neighbor);
-                    frontier_.emplace(priority, neighbor);
-                    came_from_[neighbor] = current;
-                    cout << "New cost found" << std::endl;
+                    frontier.emplace(priority, neighbor);
+                    came_from[neighbor] = current;
+                    //cout << "New cost found" << std::endl;
                 }
             }
-        } 
+        }
+        cout << "A* start Done." << std::endl;
 
         std::list<GraphIndex> path;
         GraphIndex curr = goal_;
         while(curr != start_){
-            path.push_front(came_from_[curr]);
-            curr = came_from_[curr];
+            path.push_front(came_from[curr]);
+            curr = came_from[curr];
         }
+
+        path_ = path;
+        curr_path_vertex_ = path_.begin();
         return path;
     }
 
@@ -239,6 +251,51 @@ namespace planning {
     void A_star::findStartAndGoalVertex(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
         start_ = graph_.GetClosestVertex(start);
         goal_ = graph_.GetClosestVertex(goal);
+    }
+
+    bool A_star::getPurePursuitCarrot(Eigen::Vector2f center,
+                                      float radius, Eigen::Vector2f& interim_goal) {
+        if (path_.empty())
+            return false;
+        //cout << " Pure Pursuit Start -- " << endl;
+        //debug::print_loc(center, "     Car Loc: ");
+        bool intersect_found = false;
+        for (auto path_it = curr_path_vertex_;
+                path_it != std::prev(path_.end()); ++path_it) {
+            GraphIndex curr_vertex_id = *path_it;
+            GraphIndex next_vertex_id = *(std::next(path_it));
+
+            Eigen::Vector2f curr_vertex_loc = graph_.GetLocFromVertexIndex(
+                    curr_vertex_id.x,
+                    curr_vertex_id.y);
+            Eigen::Vector2f next_vertex_loc = graph_.GetLocFromVertexIndex(
+                                next_vertex_id.x,
+                                next_vertex_id.y);
+            //debug::print_loc(curr_vertex_loc,"    Curr Vertex:");
+            //debug::print_loc(next_vertex_loc,"    Next Vertex:");
+
+            geometry::line2f path_line(curr_vertex_loc, next_vertex_loc);
+            Eigen::Vector2f intersect_point_1, intersect_point_2;
+            unsigned int num_intersections =
+                    geometry::line_circle_intersect(path_line,
+                                                    center,
+                                                    radius,
+                                                    intersect_point_1,
+                                                    intersect_point_2);
+            if (num_intersections > 0) {
+                //cout << "        Intersect!" << endl;
+                if (num_intersections == 1) {
+                   interim_goal = intersect_point_1;
+                } else {
+                   interim_goal = next_vertex_loc;
+                }
+                curr_path_vertex_ = path_it;
+                intersect_found = true;
+            }
+
+        }
+
+      return intersect_found;
     }
 
 }

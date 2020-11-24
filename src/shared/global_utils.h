@@ -337,6 +337,15 @@ namespace geometry {
         return (center-point).norm() < radius + GenConsts::kEpsilon;
     }
 
+    inline float normalize_angle(float angle) {
+        double decimal;
+        float frac = modf(angle/(2*M_PI), &decimal);
+        if (angle >= 0)
+          return frac*2*M_PI;
+        else
+          return 2*M_PI*(1+frac);
+    }
+
     template <typename T>
     Line<T> get_sub_segment_in_circle(const Line<T>& segment,
                                       const Eigen::Matrix<T,2,1>& center,
@@ -396,6 +405,7 @@ namespace geometry {
                intersect_point_2 << x_intersect_2,a*x_intersect_2+b;
            }
       }
+
        Line<T> part_in_circle;
        if (num_intersections < 2) {
            part_in_circle.Set(Eigen::Matrix<T,2,1>(0,0),Eigen::Matrix<T,2,1>(0,0));
@@ -432,6 +442,164 @@ namespace geometry {
 
        return part_in_circle;
     }
+
+    template <typename T>
+    unsigned int line_circle_intersect(const Line<T>& segment,
+                                       const Eigen::Matrix<T,2,1>& center,
+                                       float radius,
+                                       Eigen::Matrix<T,2,1>& intersect_point_1,
+                                       Eigen::Matrix<T,2,1>& intersect_point_2) {
+
+       if (is_point_in_circle(center, radius, segment.p0) &&
+                is_point_in_circle(center, radius, segment.p1)) {
+           return 0;
+       }
+
+       // Calculate intersection points between circle and segment's line.
+
+       unsigned int num_intersections;
+       if (fabs(segment.p1.x()-segment.p0.x()) < GenConsts::kEpsilon) {
+          /*
+            Solution to equation set
+                  r^2 = (x-c_x)^2 + (y-c_y)^2
+                  x = b
+            is solving the SqEq:
+                  y^2 + -2c_y*y+(b-c_x)^2+c_y^2-R^2) = 0
+          */
+          float y_intersect_1, y_intersect_2;
+          float b = segment.p1.x();
+          num_intersections = math_util::SolveQuadratic(
+                          1.0f,
+                          -2*center.y(),
+                          (math_util::Sq(b-center.x()) +
+                           math_util::Sq(center.y()) -
+                           math_util::Sq(radius)),
+                          &y_intersect_1, &y_intersect_2);
+
+          if (num_intersections == 2) {
+              intersect_point_1 << b,y_intersect_1;
+              intersect_point_2 << b,y_intersect_2;
+          } else if (num_intersections == 1) {
+              intersect_point_1 << b,y_intersect_1;
+          }
+      } else {
+           float x_intersect_1, x_intersect_2;
+           float a = (segment.p1.y()-segment.p0.y())/(segment.p1.x()-segment.p0.x());
+           float b = segment.p1.y() - a*segment.p1.x();
+           /*
+             Solution to equation set
+                   r^2 = (x-c_x)^2 + (y-c_y)^2
+                   y = ax+b
+             is solving the SqEq:
+                   (1+a^2)x^2 + (2ab-2c_x-2c_y*a)x+(c_x^2 + c_y^2 + b^2 - r^2 -2c_y*b = 0
+            */
+           num_intersections = math_util::SolveQuadratic(
+               1+math_util::Sq(a),
+               2*(a*b - center.x() - a*center.y()),
+               math_util::Sq(center.x())+ math_util::Sq(center.y()) +
+               math_util::Sq(b)- math_util::Sq(radius)- 2*b*center.y(),
+               &x_intersect_1, &x_intersect_2);
+
+           if (num_intersections == 2) {
+               intersect_point_1 << x_intersect_1, a*x_intersect_1+b;
+               intersect_point_2 << x_intersect_2, a*x_intersect_2+b;
+           } else if (num_intersections == 1) {
+               intersect_point_1 << x_intersect_1, a*x_intersect_1+b;
+           }
+      }
+
+       if (num_intersections == 0) {
+           return 0;
+       } else if (num_intersections == 1) {
+           return 1;
+       } else {
+           if (!is_point_in_circle(center, radius, segment.p0) &&
+               !is_point_in_circle(center, radius, segment.p1)) {
+               if (IsBetween(segment.p0,segment.p1,
+                             intersect_point_1,
+                             GenConsts::kEpsilon)
+                   && IsBetween(segment.p0,segment.p1,
+                                intersect_point_2,
+                                GenConsts::kEpsilon)) {
+                   return 2;
+               } else {
+                   return 0;
+               }
+           } else {
+               if (IsBetween(segment.p0,segment.p1,
+                             intersect_point_1,
+                             GenConsts::kEpsilon)) {
+                   return 1;
+               } else {
+                   intersect_point_1 = intersect_point_2;
+                   return 1;
+               }
+           }
+       }
+    }
+
+    inline float dist_arc_point(Eigen::Vector2f center, float r, Eigen::Vector2f point,
+                                float start_angle, float end_angle, bool& is_end_point) {
+        if (start_angle >= end_angle) {
+            cout << "ERROR: geometry::dist_arc_point:: end angle has to be bigger then start angle";
+            throw "ERROR: geometry::dist_arc_point:: end angle has to be bigger then start angle";
+        }
+
+        // angle of vector between point and center
+        float angle = std::atan2(point.y()-center.y(),point.x()-center.x());
+
+        //if start_angle is positive, we need to reverse angle if it is negative, so that the condition bellow will work
+        if (start_angle >= 0 ) {
+            start_angle = normalize_angle(start_angle);
+            if ((end_angle-2*M_PI) < 0.0000001)
+                end_angle = normalize_angle(end_angle);
+            if (angle < 0)
+                 angle = 2*M_PI+angle;
+        }
+
+        //cout << "dist_arc_point::angle:" << angle << " start_angle:"
+        //      << start_angle << " end_angle" << end_angle << endl;
+
+        if (angle >= start_angle && angle <= end_angle) {
+            // Line of point-2-center crosses the arc, then dist is just the dist to the cross point
+            //cout << "dist_arc_point:: in arc" << endl;
+            is_end_point = false;
+            return fabs((point-center).norm()-r);
+
+        } else {
+            // Line of point2center not on the arc, then min dist is the dist to one of the start/end point of the arc
+            // Find point on cirle at start/end angle
+            Eigen::Vector2f start_p(center.x() + std::cos(start_angle)*r,
+                                    center.y() + std::sin(start_angle)*r);
+            float dist2start = (point-start_p).norm();
+            Eigen::Vector2f end_p(center.x() + std::cos(end_angle)*r,
+                                  center.y() + std::sin(end_angle)*r);
+            float dist2end = (point-end_p).norm();
+            is_end_point = true;
+            return std::min(dist2end,dist2start);
+        }
+    }
+
+    inline float dist_line_point(Eigen::Vector2f l0, Eigen::Vector2f l1,
+                                 Eigen::Vector2f point, bool& is_end_point) {
+        Eigen::Vector2f proj_point = ProjectPointOntoLineSegment(point,l0,l1);
+        if (proj_point == l0 || proj_point == l1) {
+            float dist2start = (point-l0).norm();
+            float dist2end = (point-l1).norm();
+            is_end_point = true;
+            return std::min(dist2end,dist2start);
+        } else {
+            Eigen::Vector2f vec_to_point = (point-l0);
+            float angle_between_vecs = std::acos(
+                    vec_to_point.dot((l1-l0))/(vec_to_point.norm()*(l1-l0).norm())
+            );
+
+            is_end_point = false;
+            return fabs(std::sin(angle_between_vecs)*vec_to_point.norm());
+
+        }
+    }
+
 }
 
 #endif // GLOBAL_UTILS_H_
