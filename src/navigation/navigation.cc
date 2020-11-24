@@ -398,6 +398,65 @@ namespace navigation {
         
 
     void Navigation::Run() {
+        visualization::ClearVisualizationMsg(local_viz_msg_);
+        visualization::ClearVisualizationMsg(global_viz_msg_);
+        for(const auto& node : plan_) {
+            Eigen::Vector2f node_loc = graph_.GetLocFromVertexIndex(node.x,node.y);
+            visualization::DrawCross(node_loc, 0.15, 0x000FF, global_viz_msg_);
+        }
+
+        std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(5e-3, 1);
+        std::vector<LocalCurvHeu> heuristics;
+        Vector2f local_goal, localgoal_localframe;
+        heuristics.reserve(candidate_curvatures.size());
+        //Particle filter
+        PoseSE2 local_pose{robot_loc_, robot_angle_};
+
+        bool localplan_succ = glob_planner_.getPurePursuitCarrot(local_pose.loc, nav_params_.pure_pursuit_circ_rad, local_goal);
+        if (localplan_succ) {
+            localgoal_localframe = tf::transform_point_to_loc_frame(local_pose, local_goal);
+            visualization::DrawCross(localgoal_localframe, 1.3, 0xFF0000, local_viz_msg_);
+            xt::xtensor<float, 1> localgoal_xt{localgoal_localframe(0), localgoal_localframe(1)};
+            xt::xtensor<float, 1> cspace_localgoal;
+            for (auto &candidate : candidate_curvatures) {
+                float fpl = collision_planner_.calculate_shortest_translational_displacement(candidate,
+                                                                                             laser_pcloud_local_frame_);
+                cspace_localgoal = collision_planner_.convert_pts2cspace(localgoal_xt, candidate, false);
+                //float cspace_dis = abs(cspace_localgoal[0] * cspace_localgoal[1]);
+                float costdis = INFINITY;
+                costdis = abs(1.f / cspace_localgoal[0] - candidate);
+                heuristics.emplace_back(candidate, fpl, costdis, 0.f);
+            }
+            for (int i = 0; i < int(heuristics.size()); ++i)
+                for (int j = 1; i - j >= 0 && i + j < int(heuristics.size()); ++j) {
+                    bool islfinite = isfinite(heuristics[i - j].dis2goal);
+                    bool isrfinite = isfinite(heuristics[i + j].dis2goal);
+                    if (islfinite && isrfinite) heuristics[i].clearance = j;
+                    else break;
+                }
+            float best_cur = NAN, best_heu = -INFINITY;
+            printf("=========================\n");
+            for (auto & candidate : heuristics) {
+                printf("Cur: %.2f, Clr: %.2f, dis2goal: %.2f, fpl: %.2f\n",
+                       candidate.curvature, candidate.clearance, candidate.dis2goal, candidate.fpl);
+                float cand_heu = candidate.fpl + candidate.clearance - candidate.dis2goal;
+                if (cand_heu > -INFINITY) {
+                    if (!isfinite(candidate.fpl)) cand_heu = candidate.clearance + 100;
+                    if (cand_heu > best_heu) {
+                        best_heu = cand_heu;
+                        best_cur = candidate.curvature;
+                    }
+                }
+            }
+            if (isfinite(best_cur)) {
+                drive_msg_.curvature = best_cur;
+                SetOptimalVelocity(10, best_cur);
+                drive_pub_.publish(drive_msg_);
+            }
+
+        } else ROS_WARN("Unsuccessful local planning!");
+        viz_pub_.publish(local_viz_msg_);
+        viz_pub_.publish(global_viz_msg_);
         // Create Helper functions here
         // Milestone 1 will fill out part of this class.
         // Milestone 3 will complete the rest of navigation.
@@ -408,7 +467,6 @@ namespace navigation {
         std::cout << a << std::endl;
          */
         //Test();
-        viz_pub_.publish(global_viz_msg_);
 
         /*static double start_timestamp;
         if (step_num_ == 0) {

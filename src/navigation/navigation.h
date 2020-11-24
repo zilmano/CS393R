@@ -65,6 +65,15 @@ struct NavParams {
   float pure_pursuit_circ_rad;
 };
 
+struct LocalCurvHeu {
+    float curvature;
+    float fpl;
+    float dis2goal;
+    float clearance;
+    LocalCurvHeu(float cur, float fpl, float dis, float clr)
+        : curvature(cur), fpl(fpl), dis2goal(dis), clearance(clr) {}
+};
+
 class Navigation {
  public:
 
