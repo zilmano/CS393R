@@ -132,9 +132,10 @@ namespace navigation {
 
 
             Eigen::Vector2f carrot_loc;
-            PoseSE2 start(odom_loc_.x(),odom_loc_.y(),odom_angle_);
+            PoseSE2 start(odom_loc_.x(),odom_loc_.y(), odom_angle_);
             PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
             plan_ = glob_planner_.generatePath(start, goal);
+            ROS_WARN("SetNav replan done");
             bool intersects = glob_planner_.getPurePursuitCarrot(
                     odom_loc_,
                     nav_params_.pure_pursuit_circ_rad,
@@ -527,6 +528,7 @@ namespace navigation {
          
         
     void Navigation::Run() {
+        ROS_INFO("Prior to run");
         visualization::ClearVisualizationMsg(local_viz_msg_);
         visualization::ClearVisualizationMsg(global_viz_msg_);
         for(const auto& node : plan_) {
@@ -543,6 +545,7 @@ namespace navigation {
         Vector2f local_goal, localgoal_localframe;
         heuristics.reserve(candidate_curvatures.size());
 
+        ROS_INFO("Prior to local plan");
         bool localplan_succ = false;
         localplan_succ = glob_planner_.getPurePursuitCarrot(local_pose.loc, nav_params_.pure_pursuit_circ_rad,
                                                                      local_goal);
