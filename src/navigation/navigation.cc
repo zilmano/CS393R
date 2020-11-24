@@ -132,11 +132,11 @@ namespace navigation {
 
 
             Eigen::Vector2f carrot_loc;
-            PoseSE2 start(robot_loc_.x(),robot_loc_.y(),0);
+            PoseSE2 start(odom_loc_.x(),odom_loc_.y(),odom_angle_);
             PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
             plan_ = glob_planner_.generatePath(start, goal);
             bool intersects = glob_planner_.getPurePursuitCarrot(
-                    robot_loc_,
+                    odom_loc_,
                     nav_params_.pure_pursuit_circ_rad,
                     carrot_loc);
             cout << " Pure Pursuit Done." << endl;
@@ -159,13 +159,19 @@ namespace navigation {
     void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle) {
         PoseSE2 local_pose{loc, angle};
         PoseSE2 goal_pose{nav_goal_loc_, nav_goal_angle_};
+        bool inrange = false;
         try {
-            if ((loc - odom_loc_).norm() > 2 && !plan_.empty()) plan_ = glob_planner_.generatePath(local_pose, goal_pose);
+            printf("Prior to replanning\n");
+            inrange = (loc - odom_loc_).norm() < 10.;
+            if ((loc - odom_loc_).norm() > 2 && !plan_.empty() && inrange)
+                plan_ = glob_planner_.generatePath(local_pose, goal_pose);
         } catch (...) {
             ROS_WARN("Unsuccessful global plan");
         }
-        odom_loc_ = loc;
-        odom_angle_ = angle;
+        if (inrange) {
+            odom_loc_ = loc;
+            odom_angle_ = angle;
+        }
     }
 
     void Navigation::UpdateOdometry(const Vector2f &loc,
@@ -538,14 +544,9 @@ namespace navigation {
         heuristics.reserve(candidate_curvatures.size());
 
         bool localplan_succ = false;
-        try {
-
-             localplan_succ = glob_planner_.getPurePursuitCarrot(local_pose.loc, nav_params_.pure_pursuit_circ_rad,
+        localplan_succ = glob_planner_.getPurePursuitCarrot(local_pose.loc, nav_params_.pure_pursuit_circ_rad,
                                                                      local_goal);
-        }
-        catch (...) {
-            return;
-        }
+
         if (localplan_succ) {
             localgoal_localframe = tf::transform_point_to_loc_frame(local_pose, local_goal);
             visualization::DrawCross(localgoal_localframe, 1.3, 0xFF0000, local_viz_msg_);
