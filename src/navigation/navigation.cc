@@ -194,6 +194,7 @@ namespace navigation {
 
     float Navigation::ComputeDis2Stop() {
         float latency = latency_tracker_.estimate_latency();
+        // changed to take latency from constants, not from latecy tracker
         float actuation_latency = PhysicsConsts::default_latency * PhysicsConsts::act_latency_portion;
         float observation_latency = latency - actuation_latency;
         float curr_spd = robot_vel_.norm();
@@ -582,10 +583,6 @@ namespace navigation {
         std::cout << a << std::endl;
          */
         //Test();
-<<<<<<< HEAD
-        //viz_pub_.publish(global_viz_msg_);
-=======
->>>>>>> origin/astar2
 
         if (!is_initloc_inited_)
             return;
