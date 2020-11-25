@@ -355,13 +355,14 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_max_true,
                &p);
         weights_(index) += p.weight;
+        cout << p.weight << " ";
         total_weight += exp(weights_(index));
         index++;
-        //cout << "  Weight: " << p.weight << endl;
   }
+  printf("\nTotal weight %f\n", total_weight);
 
   // OLEG TODO: next line is for testing - remove.
-  weights_ += -log(total_weight);
+  weights = (weights_.array() - log(total_weight)).matrix();
   if (car_moving_ && (laser_obs_counter_ % pf_params_.resample_n_step) == 0 ) {
       Resample();
       for (size_t i = 0; i < pf_params_.num_particles; ++i) {
@@ -457,8 +458,9 @@ void ParticleFilter::Initialize(const string& map_file,
     // OLEG TODO: right_angle=true is for debug. remove later
     GaussianParticleInit(loc, angle, true);
     for (size_t i = 0; i < pf_params_.num_particles; ++i) {
-        weights_(i) = 1;
+        weights_(i) = -log(pf_params_.num_particles);
     }
+    printf("Init weights %f\n", -log(pf_params_.num_particles));
     map_loaded_ = true;
 
 }
