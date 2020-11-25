@@ -6,7 +6,7 @@
 # GCC is better for release mode due to the speed of its output, and its support
 # for OpenMP.
 C_compiler=/usr/bin/gcc
-CXX_compiler=/usr/bin/g++-9
+CXX_compiler=/usr/bin/g++
 
 #acceptable build_types: Release/Debug/Profile
 build_type=Release

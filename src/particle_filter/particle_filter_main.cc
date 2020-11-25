@@ -339,13 +339,13 @@ int main(int argc, char** argv) {
   particle_filter::PfParams params;
     params.radar_downsample_rate = 10;
     params.num_particles = 30;
-    params.resample_n_step= 10;
+    params.resample_n_step= 10;ß
     params.d_long=10.0;
-    params.d_short=8.0;
+    params.d_short=6.0;
     params.k_4 = 0.1;
     params.k_2 = 0.1;
-    params.sigma_obs = 0.05;
-    params.gamma = 0.1;
+    params.sigma_obs = 0.1;
+    params.gamma = 0.07;
   particle_filter_.SetParams(params);
   particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
 
