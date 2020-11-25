@@ -576,8 +576,8 @@ namespace navigation {
             }
             for (int i = 0; i < int(heuristics.size()); ++i)
                 for (int j = 1; i - j >= 0 && i + j < int(heuristics.size()); ++j) {
-                    bool islfinite = heuristics[i - j].fpl > 1.6;
-                    bool isrfinite = heuristics[i + j].fpl > 1.6;
+                    bool islfinite = heuristics[i - j].fpl > 0.8;
+                    bool isrfinite = heuristics[i + j].fpl > 0.8;
                     if (islfinite && isrfinite) heuristics[i].clearance = j;
                     else break;
                 }
@@ -586,7 +586,7 @@ namespace navigation {
             for (auto & candidate : heuristics) {
                 //printf("Cur: %.2f, Clr: %.2f, dis2goal: %.2f, fpl: %.2f\n",
                        //candidate.curvature, candidate.clearance, candidate.dis2goal, candidate.fpl);
-                float cand_heu = candidate.fpl * 1.5 - candidate.dis2goal + candidate.clearance / 10.0;
+                float cand_heu = candidate.fpl * 1.5 - candidate.dis2goal + candidate.clearance / 6.0;
                 if (cand_heu > -INFINITY) {
                     if (!isfinite(candidate.fpl)) cand_heu = candidate.clearance / 10.0 - candidate.dis2goal;
                     if (cand_heu > best_heu) {
