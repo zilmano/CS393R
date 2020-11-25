@@ -354,7 +354,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_min,
                angle_max_true,
                &p);
-        weights_(index) *= p.weight;
+        weights_(index) += p.weight;
         total_weight += weights_(index);
         index++;
         cout << "  Weight: " << p.weight << endl;
@@ -369,7 +369,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
            *  with a weighted average of particles, not if we try to pick
            *  the most probable one. We can do further modif to enable that.
            */
-          weights_(i) = 1;
+          weights_(i) = 1/log(pf_params_.num_particles);
       }
   }
   laser_obs_counter_++;
@@ -387,7 +387,7 @@ void ParticleFilter::ObserveOdometry(const Vector2f& odom_loc,
       odom_initialized_ = true;
   }
 
-  if ((odom_loc - prev_odom_loc_).norm() < 0.0005) {
+  if ((odom_loc - prev_odom_loc_).norm() < 0.01) {
     car_moving_ = false;
   } else {
     car_moving_ = true;
