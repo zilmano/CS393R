@@ -362,7 +362,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   printf("\nTotal weight %f\n", total_weight);
 
   // OLEG TODO: next line is for testing - remove.
-  weights = (weights_.array() - log(total_weight)).matrix();
+  weights_ = (weights_.array() - log(total_weight)).matrix();
   if (car_moving_ && (laser_obs_counter_ % pf_params_.resample_n_step) == 0 ) {
       Resample();
       for (size_t i = 0; i < pf_params_.num_particles; ++i) {

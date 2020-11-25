@@ -124,8 +124,10 @@ void PublishParticles() {
   particle_filter_.GetParticles(&particles);
   float minw = INFINITY, maxw = -INFINITY;
   for (auto & p : particles) {
-    minw = (minw < p.weight)?minw:p.weight;
-    maxw = (maxw > p.weight)?maxw:p.weight;
+    if (isfinite(p.weight)){
+      minw = (minw < p.weight)?minw:p.weight;
+      maxw = (maxw > p.weight)?maxw:p.weight;
+    }
   }
   minw = exp(minw);
   maxw = exp(maxw);

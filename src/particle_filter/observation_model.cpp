@@ -3,6 +3,7 @@
 //
 
 #include <iterator>
+#include <cmath>
 #include "observation_model.h"
 #include "xtensor/xtensor.hpp"
 #include "xtensor/xadapt.hpp"
@@ -31,12 +32,12 @@ float ObservationModel::calculate_accumulated_loglikelihood(simd_vec_type &inter
             div = (intersect - observ) / sigma_;
         }
         
-        return div * div;
+        return -log(sigma_) - 0.5 * log(2 * M_PI) -0.5 * div * div;
     });
     //std::cout << "Weight vector:" << std::endl;
     //std::cout << std::endl << xt::adapt(log_likelihood) << std::endl;
     float acc = xt::sum(xt::adapt(log_likelihood))[0];
-    return acc * -gamma_;
+    return acc * gamma_;
 }
 
 
