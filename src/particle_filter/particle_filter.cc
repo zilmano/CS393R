@@ -472,14 +472,12 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // variables to return them. Modify the following assignments:
   loc = Vector2f(0, 0);
   angle = 0;
-  float norm_fact = Eigen::exp(weights_.).eval().sum();
-  Eigen::VectorXd loc_weights;
+  Eigen::ArrayXd loc_weights = Eigen::exp(weights_.array());
+  float norm_fact = loc_weights.sum();
   if (abs(norm_fact - 1.0) > GenConsts::kEpsilon) {
         cout << "Normalized particle weights do not sum to 1" << endl;
-        loc_weights = Eigen::exp(weights_).eval()/ norm_fact;
+        loc_weights /= norm_fact;
         //throw "Internal Error. Normalized particle weights do not sum to 1";
-  } else {
-      loc_weights = Eigen::exp(weights_);
   }
   for (size_t i = 0; i < pf_params_.num_particles; ++i) {
     loc += loc_weights(i)*particles_[i].loc;
