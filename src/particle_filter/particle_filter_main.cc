@@ -114,12 +114,30 @@ void InitializeMsgs() {
   vis_msg_ = visualization::NewVisualizationMessage("map", "particle_filter");
 }
 
+
+uint32_t interpolate_color(float scale, uint32_t start, uint32_t end){
+  auto color = float(start) * scale + float(end) * (1 - scale);
+  return uint32_t(color);
+}
+
 void PublishParticles() {
-  vector<particle_filter::Particle> particles;
-  particle_filter_.GetParticles(&particles);
-  for (const particle_filter::Particle& p : particles) {
-    DrawParticle(p.loc, p.angle, vis_msg_);
-  }
+     vector<particle_filter::Particle> particles;
+     particle_filter_.GetParticles(&particles);
+      float minw = INFINITY, maxw = -INFINITY;
+      for (auto & p : particles) {
+        minw = (minw < p.weight)?minw:p.weight;
+        maxw = (maxw > p.weight)?maxw:p.weight;
+      }
+      minw = exp(minw);
+      maxw = exp(maxw);
+      printf("Ptcl Range: %f, %f\n", minw, maxw);
+      for (const particle_filter::Particle& p : particles) {
+        float w = exp(p.weight);
+        float scale = (w - minw) / (maxw - minw);
+        DrawPoint(p.loc, interpolate_color(scale, 0xFF0000, 0x00FF00), vis_msg_);
+        //DrawParticle(p.loc, p.angle, vis_msg_);
+      }
+    }
 }
 
 void PublishPredictedScan() {
@@ -336,6 +354,8 @@ int main(int argc, char** argv) {
 
   particle_filter::PfParams params;
   params.radar_downsample_rate = 20;
+
+  /*
   params.num_particles = 50;
   params.resample_n_step= 20;
   params.d_long = 50;
@@ -345,7 +365,20 @@ int main(int argc, char** argv) {
   params.k_2 = 0.01;
   params.k_3 = 0.05;
   params.sigma_obs = 0.1;
-  params.gamma = 0.1;
+  params.gamma = 0.1;*/
+
+  params.radar_downsample_rate = 20;
+  params.num_particles = 50;
+  params.resample_n_step= 5;
+  params.d_long = 3;
+  params.d_short = 1;
+  params.k_1 = 1;
+  params.k_4 = 0.1;
+  params.k_2 = 0.01;
+  params.k_3 = 0.1;
+  params.sigma_obs = 0.02;
+  params.gamma = 1;
+
 
   particle_filter_.SetParams(params);
   particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
