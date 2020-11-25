@@ -361,7 +361,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
 
   // OLEG TODO: next line is for testing - remove.
-  weights_ -= log(total_weight);
+  weights_ += -log(total_weight);
   if (car_moving_ && (laser_obs_counter_ % pf_params_.resample_n_step) == 0 ) {
       Resample();
       for (size_t i = 0; i < pf_params_.num_particles; ++i) {
@@ -472,13 +472,14 @@ void ParticleFilter::GetLocation(Eigen::Vector2f* loc_ptr,
   // variables to return them. Modify the following assignments:
   loc = Vector2f(0, 0);
   angle = 0;
+  float norm_fact = weights_.exp().sum();
   Eigen::VectorXd loc_weights;
-  if ((weights_.sum() - 1.0) > GenConsts::kEpsilon) {
+  if (abs(norm_fact - 1.0) > GenConsts::kEpsilon) {
         cout << "Normalized particle weights do not sum to 1" << endl;
-        loc_weights = weights_/ weights_.sum();
+        loc_weights = weights_.exp()/ norm_fact;
         //throw "Internal Error. Normalized particle weights do not sum to 1";
   } else {
-      loc_weights = weights_;
+      loc_weights = weights_.exp();
   }
   for (size_t i = 0; i < pf_params_.num_particles; ++i) {
     loc += loc_weights(i)*particles_[i].loc;
