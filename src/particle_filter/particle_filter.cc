@@ -354,10 +354,10 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_min,
                angle_max_true,
                &p);
-        weights_(index) *= 1/p.weight;
+        weights_(index) *= p.weight;
         total_weight += weights_(index);
         index++;
-        //cout << "  Weight: " << p.weight << endl;
+        cout << "  Weight: " << p.weight << endl;
   }
 
   // OLEG TODO: next line is for testing - remove.
