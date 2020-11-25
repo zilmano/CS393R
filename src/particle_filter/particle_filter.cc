@@ -253,6 +253,7 @@ void ParticleFilter::Resample() {
     cout << "     w:" << weights_(i) << endl;
     number_line[i] = Vector2f(lower,upper);
   }
+  cout << "       ---> Weight SUm:" << weights_.sum() << endl << endl;
   
   /*// IMPROVEMENT: LOW-VARIANCE RESAMPLING
   static Eigen::VectorXd resamp_num;
