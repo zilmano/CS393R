@@ -551,7 +551,7 @@ namespace navigation {
         PoseSE2 goal_pose{nav_goal_loc_, nav_goal_angle_};
 
 
-        std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(5e-3, 1);
+        std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(5e-3, 0.3);
         std::vector<LocalCurvHeu> heuristics;
         Vector2f local_goal, localgoal_localframe;
         heuristics.reserve(candidate_curvatures.size());
@@ -576,8 +576,8 @@ namespace navigation {
             }
             for (int i = 0; i < int(heuristics.size()); ++i)
                 for (int j = 1; i - j >= 0 && i + j < int(heuristics.size()); ++j) {
-                    bool islfinite = isfinite(heuristics[i - j].dis2goal);
-                    bool isrfinite = isfinite(heuristics[i + j].dis2goal);
+                    bool islfinite = heuristics[i - j].fpl > 1.6;
+                    bool isrfinite = heuristics[i + j].fpl > 1.6;
                     if (islfinite && isrfinite) heuristics[i].clearance = j;
                     else break;
                 }
@@ -586,20 +586,36 @@ namespace navigation {
             for (auto & candidate : heuristics) {
                 //printf("Cur: %.2f, Clr: %.2f, dis2goal: %.2f, fpl: %.2f\n",
                        //candidate.curvature, candidate.clearance, candidate.dis2goal, candidate.fpl);
-                float cand_heu = candidate.fpl * 1.5 - candidate.dis2goal + candidate.clearance / 30.0;
+                float cand_heu = candidate.fpl * 1.5 - candidate.dis2goal + candidate.clearance / 10.0;
                 if (cand_heu > -INFINITY) {
-                    if (!isfinite(candidate.fpl)) cand_heu = candidate.clearance / 30.0 - candidate.dis2goal;
+                    if (!isfinite(candidate.fpl)) cand_heu = candidate.clearance / 10.0 - candidate.dis2goal;
                     if (cand_heu > best_heu) {
                         best_heu = cand_heu;
                         best_cur = candidate.curvature;
                     }
                 }
             }
-            if (isfinite(best_cur)) {
-                drive_msg_.curvature = best_cur;
-                SetOptimalVelocity(10, best_cur);
-                drive_pub_.publish(drive_msg_);
+
+            //bool slowdown = false;
+            // Corner turning
+            if (!isfinite(best_cur)) {
+                float left_right_sign = (localgoal_localframe[1] > 0) ? 1. : -1.;
+                best_cur = NAN;
+                best_heu = -INFINITY;
+                //slowdown = true;
+                for (auto &candidate : heuristics) {
+                    printf("Curv: %.2f, fpl: %.2f, clr: %.2f\n", candidate.curvature, candidate.fpl, candidate.clearance);
+                    float cand_heu = candidate.curvature * left_right_sign;// + candidate.clearance / 100.0;// +  + candidate.clearance / 100.0;
+                    if (cand_heu > best_heu) {
+                        best_cur = candidate.curvature;
+                        best_heu = cand_heu;
+                    }
+                }
             }
+            SetOptimalVelocity(10, best_cur);
+            drive_msg_.curvature = best_cur;
+            //if (slowdown) drive_msg_.velocity = 0.4;
+            drive_pub_.publish(drive_msg_);
 
         } else ROS_WARN("Unsuccessful local planning!");
         viz_pub_.publish(local_viz_msg_);

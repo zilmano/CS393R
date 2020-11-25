@@ -230,7 +230,7 @@ namespace planning {
 
         std::list<GraphIndex> path;
         GraphIndex curr = goal_;
-        while(curr != start_){
+        for (uint traverse_cnt = 0; (curr != start_) && (traverse_cnt < 1e6); traverse_cnt++){
             path.push_front(came_from[curr]);
             curr = came_from[curr];
         }

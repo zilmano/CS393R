@@ -340,8 +340,8 @@ int main(int argc, char** argv) {
     params.radar_downsample_rate = 10;
     params.num_particles = 30;
     params.resample_n_step= 10;
-    params.d_long=0.3;
-    params.d_short=0.3;
+    params.d_long=10.0;
+    params.d_short=8.0;
     params.k_4 = 0.1;
     params.k_2 = 0.1;
     params.sigma_obs = 0.05;
