@@ -243,13 +243,13 @@ void ParticleFilter::Resample() {
   number_line.resize(weights_.rows());
 
   // set the first block to the first weight
-  number_line[0] = Vector2f(0,weights_(0));
+  number_line[0] = Vector2f(0,exp(weights_(0)));
 
   // for each subsequent block on the number line, set the current lower bound to the previous upper bound,
   // and set the current upper bound by adding the weight
   for (size_t i = 1; i < number_line.size(); i++){
     float lower = number_line[i-1].y();
-    float upper = number_line[i-1].y() + weights_(i);
+    float upper = number_line[i-1].y() + exp(weights_(i));
     number_line[i] = Vector2f(lower,upper);
   }
   
@@ -275,7 +275,7 @@ void ParticleFilter::Resample() {
     for(size_t j = 0; j < number_line.size(); j++){
       if((x > number_line[j].x()) and (x <= number_line[j].y())){
         new_particles[i] = particles_[j];
-        new_weights[i] = weights_(j);
+        new_weights[i] = exp(weights_(j));
         break;
       }
     }
@@ -354,7 +354,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_min,
                angle_max_true,
                &p);
-        weights_(index) = p.weight;
+        weights_(index) += p.weight;
         total_weight += weights_(index);
         index++;
         //cout << "  Weight: " << p.weight << endl;
@@ -369,7 +369,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
            *  with a weighted average of particles, not if we try to pick
            *  the most probable one. We can do further modif to enable that.
            */
-          weights_(i) = 1;
+          weights_(i) = -log(pf_params_.num_particles);
       }
   }
   laser_obs_counter_++;
