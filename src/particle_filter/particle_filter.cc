@@ -357,7 +357,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   unsigned int index = 0;
   double total_weight = 0;
   for (auto &p: particles_) {
-        //debug::print_loc(p.loc, "Particle loc");
+        debug::print_loc(p.loc, "       Particle loc");
         Update(downsampled_ranges,
                num_ranges,
                range_min,
@@ -368,7 +368,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
         weights_(index) += p.weight;
         total_weight += weights_(index);
         index++;
-        cout << "  Weight: " << p.weight << endl;
+        cout << "       -> Weight: " << p.weight << endl;
   }
 
   // OLEG TODO: next line is for testing - remove.
@@ -380,7 +380,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
            *  with a weighted average of particles, not if we try to pick
            *  the most probable one. We can do further modif to enable that.
            */
-          weights_(i) = 1/log(pf_params_.num_particles);
+          weights_(i) = log(1/pf_params_.num_particles);
       }
   }
   laser_obs_counter_++;
