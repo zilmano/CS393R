@@ -273,9 +273,9 @@ int main(int argc, char** argv) {
   params.plan_y_start = -50;
   params.plan_y_end = 50;
   params.plan_num_of_orient = 1;
-  params.plan_margin_to_wall = 0.3;
+  params.plan_margin_to_wall = 0.67;
   params.replan_dist = 2.5;
-  params.pure_pursuit_circ_rad = 2;
+  params.pure_pursuit_circ_rad = 1.1;
   params.obs_min_clearance = 0.1;
 
 

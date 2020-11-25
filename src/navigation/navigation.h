@@ -111,6 +111,8 @@ class Navigation {
   Eigen::Vector2f PlanLocalPath(Vector2f goal_loc);
   float SetOptimalVelocity(float target_dist=0, float curvature = 0);
   void Test();
+
+  float CalculatePtArcCur(const Vector2f & pt);
   
 
 

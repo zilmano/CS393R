@@ -168,7 +168,7 @@ namespace navigation {
             printf("Prior to replanning\n");
             debug::print_loc(loc," UpdateLocation::Loc");
 
-            inrange = (loc - odom_loc_).norm() < 10.;
+            inrange = (loc - robot_loc_).norm() < 10.;
             if ((loc - robot_loc_).norm() > 2 && !plan_.empty() && inrange) {
                 local_pose.pprint("  local Pose just before:");
                 goal_pose.pprint("  goal pose hust before:");
@@ -177,7 +177,7 @@ namespace navigation {
         } catch (...) {
             ROS_WARN("Unsuccessful global plan");
         }
-        if (inrange) {
+        if (inrange or robot_loc_.norm() < kEpsilon) {
             robot_loc_ = loc;
             robot_angle_ = angle;
         }
@@ -533,7 +533,10 @@ namespace navigation {
         std::cout << "Velocity: " << drive_msg_.velocity << std::endl;
         return drive_msg_.velocity;
     }
-         
+
+    float Navigation::CalculatePtArcCur(const Vector2f & pt){
+        return 1.f/pt[1];
+    }
         
     void Navigation::Run() {
         ROS_INFO("Prior to run");
@@ -562,15 +565,14 @@ namespace navigation {
             localgoal_localframe = tf::transform_point_to_loc_frame(local_pose, local_goal);
             visualization::DrawCross(localgoal_localframe, 1.3, 0xFF0000, local_viz_msg_);
             xt::xtensor<float, 1> localgoal_xt{localgoal_localframe(0), localgoal_localframe(1)};
-            xt::xtensor<float, 1> cspace_localgoal;
+            std::vector<Vector2f> localgoal_pts = {localgoal_localframe};
             for (auto &candidate : candidate_curvatures) {
-                float fpl = collision_planner_.calculate_shortest_translational_displacement(candidate,
-                                                                                             laser_pcloud_local_frame_);
-                cspace_localgoal = collision_planner_.convert_pts2cspace(localgoal_xt, candidate, false);
-                //float cspace_dis = abs(cspace_localgoal[0] * cspace_localgoal[1]);
-                float costdis = INFINITY;
-                costdis = abs(1.f / cspace_localgoal[0] - candidate);
-                heuristics.emplace_back(candidate, fpl, costdis, 0.f);
+                float fpl = abs(collision_planner_.calculate_shortest_translational_displacement(
+                        candidate,laser_pcloud_local_frame_));
+                float carrot_fpl = abs(collision_planner_.calculate_shortest_translational_displacement(
+                        candidate, localgoal_pts));
+
+                heuristics.emplace_back(candidate, fpl, carrot_fpl, 0.f);
             }
             for (int i = 0; i < int(heuristics.size()); ++i)
                 for (int j = 1; i - j >= 0 && i + j < int(heuristics.size()); ++j) {
@@ -584,9 +586,9 @@ namespace navigation {
             for (auto & candidate : heuristics) {
                 //printf("Cur: %.2f, Clr: %.2f, dis2goal: %.2f, fpl: %.2f\n",
                        //candidate.curvature, candidate.clearance, candidate.dis2goal, candidate.fpl);
-                float cand_heu = candidate.fpl + candidate.clearance - candidate.dis2goal;
+                float cand_heu = candidate.fpl * 1.5 - candidate.dis2goal + candidate.clearance / 30.0;
                 if (cand_heu > -INFINITY) {
-                    if (!isfinite(candidate.fpl)) cand_heu = candidate.clearance + 100;
+                    if (!isfinite(candidate.fpl)) cand_heu = candidate.clearance / 30.0 - candidate.dis2goal;
                     if (cand_heu > best_heu) {
                         best_heu = cand_heu;
                         best_cur = candidate.curvature;

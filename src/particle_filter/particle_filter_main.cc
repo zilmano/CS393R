@@ -334,12 +334,18 @@ int main(int argc, char** argv) {
   laser_publisher_ =
       n.advertise<sensor_msgs::LaserScan>("scan", 1);
 
+
+
   particle_filter::PfParams params;
-  params.radar_downsample_rate = 20;
-  params.num_particles = 30;
-  params.resample_n_step= 5;
-  params.d_long=0.3;
-  params.d_short=0.3;
+    params.radar_downsample_rate = 10;
+    params.num_particles = 30;
+    params.resample_n_step= 10;
+    params.d_long=0.3;
+    params.d_short=0.3;
+    params.k_4 = 0.1;
+    params.k_2 = 0.1;
+    params.sigma_obs = 0.05;
+    params.gamma = 0.1;
   particle_filter_.SetParams(params);
   particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
 
