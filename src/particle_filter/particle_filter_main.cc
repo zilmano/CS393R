@@ -114,11 +114,27 @@ void InitializeMsgs() {
   vis_msg_ = visualization::NewVisualizationMessage("map", "particle_filter");
 }
 
+uint32_t interpolate_color(float scale, uint32_t start, uint32_t end){
+  auto color = float(start) * scale + float(end) * (1 - scale);
+  return uint32_t(color);
+}
+
 void PublishParticles() {
   vector<particle_filter::Particle> particles;
   particle_filter_.GetParticles(&particles);
+  float minw = INFINITY, maxw = -INFINITY;
+  for (auto & p : particles) {
+    minw = (minw < p.weight)?minw:p.weight;
+    maxw = (maxw > p.weight)?maxw:p.weight;
+  }
+  minw = exp(minw);
+  maxw = exp(maxw);
+  printf("Ptcl Range: %f, %f\n", minw, maxw);
   for (const particle_filter::Particle& p : particles) {
-    DrawParticle(p.loc, p.angle, vis_msg_);
+    float w = exp(p.weight);
+    float scale = (w - minw) / (maxw - minw);
+    DrawPoint(p.loc, interpolate_color(scale, 0xFF0000, 0x00FF00), vis_msg_);
+    //DrawParticle(p.loc, p.angle, vis_msg_);
   }
 }
 
@@ -345,7 +361,7 @@ int main(int argc, char** argv) {
     params.k_4 = 0.1;
     params.k_2 = 0.1;
     params.sigma_obs = 0.5;
-    params.gamma = 0.07;
+    params.gamma = 0.1;
   particle_filter_.SetParams(params);
   particle_filter_.SetRosHandleAndInitPubs(&visualization_publisher_, &vis_msg_);
 
