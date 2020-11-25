@@ -216,7 +216,7 @@ void ParticleFilter::Resample() {
   // The current particles are in the `particles_` variable. 
   // Create a variable to store the new particles, and when done, replace the
   // old set of particles:
-  //cout << endl << endl << "Resample::" << endl;
+  cout << endl << endl << "Resample::" << endl;
   if (weights_.rows() <= 0) {
       cout << "Internal Error. Cannot resample without num_particles=0." << endl;
       throw "Internal Error. Cannot resample without num_particles=0. Please make sure ParticleFilter has pf_params_.num_particles>0";
@@ -250,6 +250,7 @@ void ParticleFilter::Resample() {
   for (size_t i = 1; i < number_line.size(); i++){
     float lower = number_line[i-1].y();
     float upper = number_line[i-1].y() + weights_(i);
+    cout << "     w:" << weights_(i) << endl;
     number_line[i] = Vector2f(lower,upper);
   }
   
