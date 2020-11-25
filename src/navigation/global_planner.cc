@@ -191,6 +191,10 @@ namespace planning {
 
     std::list<GraphIndex> A_star::generatePath(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
 
+        cout << "\n\nStarting generatePath..." << endl;
+                debug::print_loc(start.loc," start loc", false);
+                debug::print_loc(goal.loc," goal loc", true);
+
         findStartAndGoalVertex(start, goal);
 
         std::priority_queue<element, std::vector<element>, std::greater<element>> frontier;
@@ -283,13 +287,15 @@ namespace planning {
                                                     intersect_point_1,
                                                     intersect_point_2);
             if (num_intersections > 0) {
-                //cout << "        Intersect!" << endl;
+                cout << "        Intersect!" << endl;
                 if (num_intersections == 1) {
                    interim_goal = intersect_point_1;
                 } else {
                    interim_goal = next_vertex_loc;
                 }
                 curr_path_vertex_ = path_it;
+                cout << "Curr path vertex: (" << curr_vertex_loc.x() << ", "
+                        << curr_vertex_loc.y() <<")" << endl;
                 intersect_found = true;
             }
 

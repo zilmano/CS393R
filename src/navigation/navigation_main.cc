@@ -77,7 +77,7 @@ DEFINE_string(loc_topic, "localization", "Name of ROS topic for localization");
 DEFINE_string(init_topic,
               "initialpose",
               "Name of ROS topic for initialization");
-DEFINE_string(map, "maps/OBSTACLE_COURSE/OBSTACLE_COURSE.vectormap.txt", "Name of vector map file");
+DEFINE_string(map, "maps/GDC1.txt", "Name of vector map file");
 
 bool run_ = true;
 sensor_msgs::LaserScan last_laser_msg_;
@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
   params.plan_num_of_orient = 1;
   params.plan_margin_to_wall = 0.3;
   params.replan_dist = 2.5;
-  params.pure_pursuit_circ_rad = 2;
+  params.pure_pursuit_circ_rad = 1.0;
   params.obs_min_clearance = 0.1;
 
 

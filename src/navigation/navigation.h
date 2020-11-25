@@ -111,9 +111,8 @@ class Navigation {
    float ComputeDis2Stop();
    std::vector<Eigen::Vector2f> ConvertLaserCloudToOdomFrame();
    std::vector<Eigen::Vector2f> ConvertLaserCloudToOtherFrame(const Vector2f& loc,float angle);
-   inline void PrintDbg(const std::string &msg
-
-   ) {
+   void visPlan();
+   inline void PrintDbg(const std::string &msg) {
        if ((step_num_ % Debug::dbg_print_rate) == 0) {
            std::cout << "DBG::<STEP " << step_num_ << "> " << msg << std::endl;
        }

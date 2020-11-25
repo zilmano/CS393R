@@ -69,6 +69,7 @@ namespace navigation {
             robot_angle_(0),
             robot_vel_(0, 0),
             robot_omega_(0),
+            odom_loc_(0),
             odom_angle_(0),
             nav_complete_(true),
             nav_goal_loc_(0, 0),
@@ -123,10 +124,20 @@ namespace navigation {
 
     }
 
+    void Navigation::visPlan() {
+        for(const auto& node : plan_) {
+            Eigen::Vector2f node_loc = graph_.GetLocFromVertexIndex(node.x,node.y);
+            //std::cout << "[" << node_loc.x() << " " << node_loc.y() << "] ";
+            visualization::DrawCross(node_loc, 0.15, 0x000FF, global_viz_msg_);
+        }
+        //cout << endl;
+    }
+
 
     void Navigation::SetNavGoal(const Vector2f &loc, float angle) {
             nav_goal_loc_ = loc;
             nav_goal_angle_ = angle;
+            nav_complete_ = false;
 
             cout << "Set Nav Goal" << endl << endl;
 
@@ -146,18 +157,15 @@ namespace navigation {
               cout << "\"Carrot\" found..." << endl;
             }
 
-            for(const auto& node : plan_)
-            {
-                Eigen::Vector2f node_loc = graph_.GetLocFromVertexIndex(node.x,node.y);
-                std::cout << "[" << node_loc.x() << " " << node_loc.y() << "] ";
-                visualization::DrawCross(node_loc, 0.15, 0x000FF, global_viz_msg_);
-            }
-            cout << endl;
+            visPlan();
+
 
         }
 
     void Navigation::UpdateLocation(const Eigen::Vector2f &loc, float angle) {
-
+        debug::print_loc(loc," \n\nUpdateLocation::Loc");
+        robot_loc_ = loc;
+        robot_angle_ = angle;
     }
 
     void Navigation::UpdateOdometry(const Vector2f &loc,
@@ -174,8 +182,8 @@ namespace navigation {
                 ROS_INFO("Init loc %f, %f", init_loc_[0], init_loc_[1]);
             }
         }
-        robot_loc_ = loc;
-        robot_angle_ = angle;
+        odom_loc_ = loc;
+        odom_angle_ = angle;
         robot_vel_ = vel;
         robot_omega_ = ang_vel;
 
@@ -193,7 +201,7 @@ namespace navigation {
     }
 
     float Navigation::ComputeDis2Stop() {
-        float latency = latency_tracker_.estimate_latency();
+        float latency = PhysicsConsts::default_latency;
         float actuation_latency = PhysicsConsts::default_latency * PhysicsConsts::act_latency_portion;
         float observation_latency = latency - actuation_latency;
         float curr_spd = robot_vel_.norm();
@@ -216,7 +224,7 @@ namespace navigation {
         for (size_t i = 0; i < laser_pcloud_local_frame_.size(); ++i) {
             Vector2f odom_frame_point =
                 tf::transform_point_to_glob_frame(
-                    PoseSE2(robot_loc_,robot_angle_),
+                    PoseSE2(odom_loc_,odom_angle_),
                     laser_pcloud_local_frame_[i]);
             odom_frame_point_cloud.push_back(odom_frame_point);
         }
@@ -382,7 +390,10 @@ namespace navigation {
         //cout << "done if else" << endl;
         if (is_end_point && !count_boundary_points) {
             goal_dist = 100;
+        } else if (goal_dist < 0.5) {
+            goal_dist = -100;
         }
+
         //cout << "done FindGoalDist" << endl;
         return goal_dist;
     }
@@ -390,8 +401,8 @@ namespace navigation {
     // Oleg TODO:: move this function to the collision planner.
     Eigen::Vector2f Navigation::PlanLocalPath(Vector2f goal_loc) {
             Eigen::Vector2f local_path;
-            std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(0.01,2);
-            float w1 = 1, w2 = 3, w3 =-2;
+            std::vector<float> candidate_curvatures = collision_planner_.generate_candidate_paths(0.01,1);
+            float w1 = 1, w2 = 3, w3 =-4;
             float max_fpl = PhysicsConsts::radar_max_range-2;
             float best_c = 0;
             float best_fpl = 0;
@@ -402,17 +413,17 @@ namespace navigation {
             state_estimator_.transform_p_cloud_tf_obs_to_act(
                             laser_pcloud_local_frame_,
                             work_point_cloud);*/
-            std::cout << "Number of paths to go check:" <<  candidate_curvatures.size() << std::endl;
-            std::cout << "Max corvature size:" << candidate_curvatures[candidate_curvatures.size()-1] << std::endl;
+            //std::cout << "Number of paths to go check:" <<  candidate_curvatures.size() << std::endl;
+            //std::cout << "Max corvature size:" << candidate_curvatures[candidate_curvatures.size()-1] << std::endl;
             for (size_t i = 0; i < candidate_curvatures.size(); ++i) {
                 float candidate = candidate_curvatures[i];
                 float reward, clearance, dist_to_goal, fpl;
-                std::cout << "    RePlan::candidate:  " << candidate << std::endl;
+                //std::cout << "    RePlan::candidate:  " << candidate << std::endl;
                 auto colliding_points =
                         collision_planner_.select_potential_collision(candidate, work_point_cloud);
                 if (colliding_points.empty()) {
                     //No collision found. i.e FPL is the max range of the radar;
-                    std::cout << "    RePlan::colliding points empty." << std::endl;
+                    //std::cout << "    RePlan::colliding points empty." << std::endl;
                     clearance = FindMinClearance(candidate, max_fpl, work_point_cloud);
                     dist_to_goal = FindDistToGoal(candidate, max_fpl, goal_loc, true);
                     fpl = max_fpl;
@@ -422,14 +433,14 @@ namespace navigation {
                         // Straigh Line Case
                         fpl = collision_planner_.calculate_shortest_collision_flat(work_point_cloud);
                         fpl = std::min(fpl,max_fpl);
-                        std::cout << "    RePlan::For C==0 FPL is " << fpl << std::endl;
+                        //std::cout << "    RePlan::For C==0 FPL is " << fpl << std::endl;
                         clearance = FindMinClearance(candidate, fpl, work_point_cloud);
                         dist_to_goal = FindDistToGoal(candidate,fpl, goal_loc, false);
                     } else {
                         float angle = collision_planner_.calculate_shortest_collision(candidate, colliding_points);
                         fpl = (1/candidate)*angle;
                         fpl = std::min(fpl,max_fpl);
-                        std::cout << "    RePlan::Anngle " << angle << " FPL "<< fpl << std::endl;
+                        //std::cout << "    RePlan::Anngle " << angle << " FPL "<< fpl << std::endl;
                         clearance = FindMinClearance(candidate, fpl, work_point_cloud);
                         dist_to_goal = FindDistToGoal(candidate,fpl, goal_loc, true);
                         /*if (candidate > 0) {
@@ -441,10 +452,10 @@ namespace navigation {
                         }*/
                     }
                 }
-                cout << "--> Reward fpl " << fpl << " clearance " << clearance << " dist_to_goal " << dist_to_goal << endl;
+                //cout << "--> Reward fpl " << fpl << " clearance " << clearance << " dist_to_goal " << dist_to_goal << endl;
 
                 reward = w1*fpl + w2*clearance + w3*dist_to_goal;
-                cout << "reward:" << reward << endl;
+                //cout << "reward:" << reward << endl;
                 /*if ((candidate == 0 && fabs(fpl-PhysicsConsts::radar_max_range) <
                     PhysicsConsts::radar_noise_std) || std::isinf(fpl)) {
                     if (fabs(candidate) < GenConsts::kEpsilon) {
@@ -526,7 +537,7 @@ namespace navigation {
         //Test();
         //viz_pub_.publish(global_viz_msg_);
 
-        if (!is_initloc_inited_)
+        if (!is_initloc_inited_ || nav_complete_ )
             return;
         //static double start_timestamp;
         //if (step_num_ == 0) {
@@ -562,9 +573,64 @@ namespace navigation {
         //        << std::endl;
         //PrintDbg(dbg_msg.str());
 
-        Vector2f carrot(5,0);
-        Vector2f local_path = PlanLocalPath(carrot);
-        SetOptimalVelocity(200, local_path(1));
+        Vector2f carrot;
+        bool intersects;
+
+        if (robot_loc_.x() > nav_params_.plan_x_end ||
+                robot_loc_.x() < nav_params_.plan_x_start ||
+                robot_loc_.y() < nav_params_.plan_y_start ||
+                robot_loc_.y() > nav_params_.plan_y_end) {
+            robot_loc_ = odom_loc_;
+            cout << "ERROR: particle filter fucked up." << endl;
+            throw;
+        }
+        if ((robot_loc_- nav_goal_loc_).norm() < nav_params_.pure_pursuit_circ_rad*2) {
+            carrot = nav_goal_loc_;
+            intersects = true;
+            cout << "found loc goal" << endl;
+        } else {
+            intersects = glob_planner_.getPurePursuitCarrot(
+                           robot_loc_,
+                           nav_params_.pure_pursuit_circ_rad,
+                           carrot);
+        }
+        carrot = tf::transform_point_to_loc_frame(
+                PoseSE2(robot_loc_.x(),robot_loc_.y(),robot_angle_),
+                carrot);
+
+        if (!intersects) {
+            // Attempt to crash recover with larger radius
+            intersects = glob_planner_.getPurePursuitCarrot(
+                                       robot_loc_,
+                                       nav_params_.pure_pursuit_circ_rad*1.5,
+                                       carrot);
+            if (!intersects) {
+                cout << " -------- Re-Generate-Path -------" << endl;
+                PoseSE2 start(robot_loc_.x(),robot_loc_.y(),0);
+                PoseSE2 goal(nav_goal_loc_.x(),nav_goal_loc_.y(),0);
+                // OLEG TODO fix planner to find the nearest location that has --edges -- if there isn't a
+                // big difference from the closest location
+                plan_ = glob_planner_.generatePath(start, goal);
+                intersects = glob_planner_.getPurePursuitCarrot(
+                                       robot_loc_,
+                                       nav_params_.pure_pursuit_circ_rad,
+                                       carrot);
+                return;
+            }
+            carrot = tf::transform_point_to_loc_frame(
+                            PoseSE2(robot_loc_.x(),robot_loc_.y(),robot_angle_),
+                            carrot);
+        }
+
+        if ((robot_loc_- nav_goal_loc_).norm() < 0.9) {
+            nav_complete_ = true;
+            drive_msg_.velocity = 0;
+        } else {
+            Vector2f local_path = PlanLocalPath(carrot);
+            SetOptimalVelocity((carrot-robot_loc_).norm(), local_path(1));
+        }
+
+
 
         drive_pub_.publish(drive_msg_);
 
@@ -583,6 +649,10 @@ namespace navigation {
         w = CarDims::w + CarDims::default_safety_margin * 2;
         l = CarDims::l + CarDims::default_safety_margin * 2;
         visualization::DrawCar(w, l, 0x0000FF00, local_viz_msg_);
+
+        visPlan();
+        visualization::DrawCross(carrot, 0.5, 0xFF0000, local_viz_msg_);
+
         std::vector<Vector2f> viz_pc;
         //state_estimator_.transform_p_cloud_tf_obs_to_act(
         //                           laser_pcloud_local_frame_,
@@ -603,6 +673,7 @@ namespace navigation {
         //std::cout << std::endl;
 
         viz_pub_.publish(local_viz_msg_);
+        viz_pub_.publish(global_viz_msg_);
 
         step_num_++;
 
