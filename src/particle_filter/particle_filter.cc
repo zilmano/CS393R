@@ -344,7 +344,6 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
       throw "Internal Error. weights_ vector size is smelly.";
   }
   unsigned int index = 0;
-  double total_weight = 0;
   double logsumexp = -INFINITY;
   for (auto &p: particles_) {
         //debug::print_loc(p.loc, "Particle loc");
@@ -356,14 +355,14 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_max_true,
                &p);
         weights_(index) += p.weight;
-        if (p.weight > logsumexp) logsumexp = p.weight;
+        if (weights_(index) > logsumexp) logsumexp = p.weight;
         cout << p.weight << " ";
         index++;
   }
   printf("\nLSE: %f\n", logsumexp);
 
   // OLEG TODO: next line is for testing - remove.
-  weights_ = (weights_.array() - 0.9 * logsumexp).matrix();
+  weights_ = (weights_.array() - 0.99 * logsumexp).matrix();
   for (size_t i = 0; i < pf_params_.num_particles; ++i)
     cout << weights_(i) << " ";
   cout << endl; 
