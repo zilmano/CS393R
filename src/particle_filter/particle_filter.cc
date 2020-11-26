@@ -345,6 +345,7 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
   }
   unsigned int index = 0;
   double total_weight = 0;
+  double logsumexp = -INFINITY;
   for (auto &p: particles_) {
         //debug::print_loc(p.loc, "Particle loc");
         Update(downsampled_ranges,
@@ -355,14 +356,17 @@ void ParticleFilter::ObserveLaser(const vector<float>& ranges,
                angle_max_true,
                &p);
         weights_(index) += p.weight;
+        if (p.weight > logsumexp) logsumexp = p.weight;
         cout << p.weight << " ";
-        total_weight += exp(weights_(index));
         index++;
   }
-  printf("\nTotal weight %f\n", total_weight);
+  printf("\nLSE: %f\n", logsumexp);
 
   // OLEG TODO: next line is for testing - remove.
-  weights_ = (weights_.array() - log(total_weight)).matrix();
+  weights_ = (weights_.array() - 0.9 * logsumexp).matrix();
+  for (size_t i = 0; i < pf_params_.num_particles; ++i)
+    cout << weights_(i) << " ";
+  cout << endl; 
   if (car_moving_ && (laser_obs_counter_ % pf_params_.resample_n_step) == 0 ) {
       Resample();
       for (size_t i = 0; i < pf_params_.num_particles; ++i) {
