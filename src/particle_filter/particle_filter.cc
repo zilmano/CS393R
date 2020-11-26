@@ -255,7 +255,7 @@ void ParticleFilter::Resample() {
   }
   cout << "       ---> Weight SUm:" << weights_.sum() << endl << endl;
   
-  /*// IMPROVEMENT: LOW-VARIANCE RESAMPLING
+  // IMPROVEMENT: LOW-VARIANCE RESAMPLING
   static Eigen::VectorXd resamp_num;
   resamp_num.resize(pf_params_.num_particles, 1);
   resamp_num[0] = rng_.UniformRandom(0,1);
@@ -281,9 +281,9 @@ void ParticleFilter::Resample() {
         break;
       }
     }
-  }*/
+  }
 
-  for(size_t i = 0; i < particles_.size(); i++){
+  /*for(size_t i = 0; i < particles_.size(); i++){
       float x = rng_.UniformRandom(0,1);
       for(size_t j = 0; j < number_line.size(); j++){
         if((x > number_line[j].x()) and (x <= number_line[j].y())){
@@ -292,7 +292,7 @@ void ParticleFilter::Resample() {
           break;
         }
       }
-    }
+    }*/
 
   // OLEG: Use pointers later to avoid copy contructors?
   particles_ = new_particles;
