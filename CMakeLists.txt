@@ -65,6 +65,13 @@ ROSBUILD_ADD_EXECUTABLE(slam
                         src/slam/slam.cc)
 TARGET_LINK_LIBRARIES(slam shared_library ${libs})
 
+ROSBUILD_ADD_EXECUTABLE(planning
+                        src/adaptive_workspace_bias_planning/planning_main.cc
+                        src/adaptive_workspace_bias_planning/planning.cc
+	)
+
+TARGET_LINK_LIBRARIES(planning shared_library ${libs})
+
 
 ROSBUILD_ADD_EXECUTABLE(particle_filter
                         src/particle_filter/particle_filter_main.cc
@@ -93,7 +100,6 @@ target_include_directories(particle_filter PUBLIC
 
 target_include_directories(slam PUBLIC
         ${xtensor_INCLUDE_DIRS}/xtensor ${xsimd_INCLUDE_DIRS}/xsimd ${xtensor-blas_INCLUDE_DIRS}/xtensor-blas  ${OpenCV_INCLUDE_DIRS})
-
 
 ADD_EXECUTABLE(eigen_tutorial
                src/eigen_tutorial.cc)
