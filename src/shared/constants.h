@@ -17,7 +17,7 @@ namespace GenConsts {
 namespace PhysicsConsts {
     const static float radar_noise_std = 0.6f;
     const static float max_acc = 3.0f;
-    const static float max_vel = 0.5f;
+    const static float max_vel = 1.0f;
     const static float act_latency_portion = 0.75f;
     const static float default_latency = 50.0f / 1000.0f;
     const static float radar_max_range = 10.0f;

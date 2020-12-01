@@ -121,23 +121,11 @@ uint32_t interpolate_color(float scale, uint32_t start, uint32_t end){
 }
 
 void PublishParticles() {
-     vector<particle_filter::Particle> particles;
-     particle_filter_.GetParticles(&particles);
-      float minw = INFINITY, maxw = -INFINITY;
-      for (auto & p : particles) {
-        minw = (minw < p.weight)?minw:p.weight;
-        maxw = (maxw > p.weight)?maxw:p.weight;
-      }
-      minw = exp(minw);
-      maxw = exp(maxw);
-      printf("Ptcl Range: %f, %f\n", minw, maxw);
-      for (const particle_filter::Particle& p : particles) {
-        float w = exp(p.weight);
-        float scale = (w - minw) / (maxw - minw);
-        DrawPoint(p.loc, interpolate_color(scale, 0xFF0000, 0x00FF00), vis_msg_);
-        //DrawParticle(p.loc, p.angle, vis_msg_);
-      }
-    }
+  vector<particle_filter::Particle> particles;
+  particle_filter_.GetParticles(&particles);
+  for (const particle_filter::Particle& p : particles) {
+    DrawParticle(p.loc, p.angle, vis_msg_);
+  }
 }
 
 void PublishPredictedScan() {
@@ -353,9 +341,7 @@ int main(int argc, char** argv) {
       n.advertise<sensor_msgs::LaserScan>("scan", 1);
 
   particle_filter::PfParams params;
-  params.radar_downsample_rate = 20;
-
-  /*
+  /*params.radar_downsample_rate = 20;
   params.num_particles = 50;
   params.resample_n_step= 20;
   params.d_long = 50;
