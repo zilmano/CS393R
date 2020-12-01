@@ -122,7 +122,6 @@ uint32_t interpolate_color(float scale, uint32_t start, uint32_t end){
 
 void PublishParticles() {
   vector<particle_filter::Particle> particles;
-<<<<<<< HEAD
   particle_filter_.GetParticles(&particles);
   for (const particle_filter::Particle& p : particles) {
     DrawParticle(p.loc, p.angle, vis_msg_);
