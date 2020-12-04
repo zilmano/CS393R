@@ -99,6 +99,17 @@ public:
     Eigen::Vector2f GetLocFromVertexIndex(int index_x, int index_y);
     void AddWallToGraph(const geometry::line2f&  line){};
 
+    int getNumVerticesX(){
+        return num_vertices_x_;
+    }
+    int getNumVerticesY(){
+        return num_vertices_y_;
+    }
+
+    int getNumOrient(){
+        return num_of_orient_;
+    }
+
     const Vertices& GetVertices() const {
         return vertices_;
     }
@@ -144,6 +155,10 @@ public:
     std::list<GraphIndex> generatePath(const navigation::PoseSE2& start,
                                        const navigation::PoseSE2& goal);
 
+    float getLocationCost(const GraphIndex& index){
+        return location_cost_;
+    };
+
     double calcCost(const GraphIndex& current, const GraphIndex& next);
 
     double calcHeuristic(const GraphIndex& next);
@@ -163,6 +178,7 @@ private:
     std::list<GraphIndex>::const_iterator curr_path_vertex_;
     GraphIndex start_;
     GraphIndex goal_; 
+    float location_cost_;
 
 };
 
