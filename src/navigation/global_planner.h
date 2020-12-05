@@ -10,14 +10,14 @@
 #include <vector>
 #include <list>
 #include <queue>
+#include <shared/global_utils.h>
+#include <memory>
 
 namespace vector_map {
     class VectorMap;
 };
 
-namespace navigation {
-    class PoseSE2;
-};
+
 using std::vector;
 using std::list;
 
@@ -75,6 +75,37 @@ typedef vector<vec_2d> vec_3d;
 typedef vec_3d Vertices;
 typedef std::pair<double, planning::GraphIndex> element;
 
+class SimpleGraph {
+public:
+    struct Node {
+        explicit Node(navigation::PoseSE2 _pose):pose(_pose) {};
+        navigation::PoseSE2 pose;
+        list<std::shared_ptr<Node>> neighbors;
+    };
+
+    typedef  list<std::shared_ptr<Node>> Neighbors;
+    typedef  std::shared_ptr<Node> NodePtr;
+
+    explicit SimpleGraph(){};
+
+    Neighbors GetVertexNeighbors(std::size_t index);
+    std::size_t AddVertex(const navigation::PoseSE2& pose);
+    void AddEdge(std::size_t vertex,  std::size_t neighbor);
+
+    navigation::PoseSE2 GetVertexPose(std::size_t index);
+    navigation::PoseSE2 GetVertexPose(const NodePtr& vertex);
+    std::size_t GetClosestVertex(const navigation::PoseSE2& pose);
+    std::size_t GetNumVertices() {return vertices_.size();};
+    vector<Node> GetVertices() const {return vertices_;};
+    NodePtr GetVertex(std::size_t index);
+
+    void MergeGraph(const SimpleGraph& other,const NodePtr& edge_vertex_indx,
+                    const NodePtr& edge_vertex_index_in_other);
+
+private:
+    vector<Node> vertices_;
+};
+
 class Graph {
 public:
     explicit Graph() {}; // Just for constuctors of including classes..sucks
@@ -93,7 +124,7 @@ public:
     void GenerateGraph(const vector_map::VectorMap& map);
 
     std::list<GraphIndex> GetVertexNeighbors(const GraphIndex& index);
-    //std::list<GraphIndex> GetVertexNeigbors(const navigation::PoseSE2& pose);
+    //std::starlist<GraphIndex> GetVertexNeigbors(const navigation::PoseSE2& pose);
 
     GraphIndex GetClosestVertex(const navigation::PoseSE2& pose);
     Eigen::Vector2f GetLocFromVertexIndex(int index_x, int index_y);

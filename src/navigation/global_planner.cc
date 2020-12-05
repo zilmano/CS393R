@@ -14,7 +14,93 @@
 #include "shared/math/line2d.h"
 
 
+using std::cout;
+using std::endl;
 namespace planning {
+    SimpleGraph::Neighbors SimpleGraph::GetVertexNeighbors(std::size_t index) {
+        if (index >= vertices_.size()) {
+            std::string msg = "SimpleGraph::GetVertex:: Requested Vertex is out of bounds.";
+            cout << msg << endl;
+            throw msg;
+        }
+        return vertices_[index].neighbors;
+    }
+
+    std::size_t SimpleGraph::AddVertex(const navigation::PoseSE2& pose) {
+        vertices_.push_back(Node(pose));
+
+        return vertices_.size()-1;
+    }
+
+    void SimpleGraph::AddEdge(std::size_t vertex, std::size_t neighbor) {
+        if (vertex >= vertices_.size()) {
+            std::string msg = "SimpleGraph::AddEdge:: Requested Vertex is out of bounds.";
+            cout << msg << endl;
+            throw msg;
+        } else if (neighbor >= vertices_.size()) {
+            std::string msg = "SimpleGraph::AddEdge:: Requested nieghbor is out of bounds.";
+            cout << msg << endl;
+            throw msg;
+        }
+
+        vertices_[vertex].neighbors.push_back(NodePtr(&vertices_[neighbor]));
+        vertices_[neighbor].neighbors.push_back(NodePtr(&vertices_[vertex]));
+    }
+
+    navigation::PoseSE2 SimpleGraph::GetVertexPose(std::size_t index) {
+            if (index >= vertices_.size()) {
+                std::string msg = "SimpleGraph::GetVertexPose:: Requested Vertex is out of bounds.";
+                cout << msg << endl;
+                throw msg;
+           }
+
+        return vertices_[index].pose;
+    }
+
+    navigation::PoseSE2 SimpleGraph::GetVertexPose(const NodePtr& vertex) {
+            return vertex->pose;
+    }
+
+    SimpleGraph::NodePtr SimpleGraph::GetVertex(std::size_t index) {
+        if (index >= vertices_.size()) {
+                    std::string msg = "SimpleGraph::GetVertex:: Requested Vertex is out of bounds.";
+                    cout << msg << endl;
+                    throw msg;
+               }
+        return NodePtr(&vertices_[index]);
+    }
+
+    void SimpleGraph::MergeGraph(const SimpleGraph& other,const NodePtr& edge_vertex,
+                                 const NodePtr& edge_vertex_in_other) {
+        edge_vertex->neighbors.push_back(edge_vertex_in_other);
+        edge_vertex_in_other->neighbors.push_back(edge_vertex);
+        const vector<Node>& other_vertices = other.GetVertices();
+        vertices_.insert(std::end(vertices_), std::begin(other_vertices),std::end(other_vertices));
+
+
+    }
+
+    std::size_t SimpleGraph::GetClosestVertex(const navigation::PoseSE2& pose) {
+        if (vertices_.size() == 0) {
+                    std::string msg = "SimpleGraph::GetClosestVertex:: Graph is empty.";
+                    cout << msg << endl;
+                    throw msg;
+        }
+        std::size_t closest_vertex = 0;
+        float closest_dist = std::numeric_limits<float>::max();
+        for (std::size_t i = 0; i < vertices_.size(); ++i) {
+            navigation::PoseSE2 vertex_pose = vertices_[i].pose;
+            float dist_to_curr_vertex =
+                    (pose.loc-vertex_pose.loc).squaredNorm() + pow((pose.angle-vertex_pose.angle),2);
+            if (dist_to_curr_vertex < closest_dist) {
+                closest_dist = dist_to_curr_vertex;
+                closest_vertex = i;
+            }
+        }
+
+        return closest_vertex;
+    }
+
 
     void Graph::GenerateGraph(const vector_map::VectorMap& map) {
         double num_vertices_x, num_vertices_y;
