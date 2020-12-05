@@ -30,16 +30,20 @@ SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 ADD_LIBRARY(shared_library
             src/visualization/visualization.cc
-            src/vector_map/vector_map.cc)
+            src/vector_map/vector_map.cc
+	    src/navigation/global_planner.cc)
 
 ADD_SUBDIRECTORY(src/shared)
 INCLUDE_DIRECTORIES(src/shared)
 INCLUDE_DIRECTORIES(src)
-
 add_subdirectory(thirdparty/xtl)
 add_subdirectory(thirdparty/xtensor)
 add_subdirectory(thirdparty/xtensor-blas)
 add_subdirectory(thirdparty/xsimd)
+INCLUDE_DIRECTORIES(thirdparty/xtl/include)
+INCLUDE_DIRECTORIES(thirdparty/xtensor/include/)
+INCLUDE_DIRECTORIES(thirdparty/xtensor-blas/include)
+INCLUDE_DIRECTORIES(thirdparty/xsimd)
 
 find_package(OpenCV REQUIRED)
 
