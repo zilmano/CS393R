@@ -4,7 +4,7 @@
 #include "navigation/global_planner.h"
 #include <shared/global_utils.h>
 #include <shared/util/random.h>
-
+#include <map>
 
 namespace planning {
 
@@ -55,7 +55,7 @@ private:
 
     // Vector holding our weights used for the Gibbs sampling
     Eigen::VectorXd weights_;
-
+    
     //To Add member: Features class "FeatureCalc", can take the astar ws_planner as an argument to contructor 
     //        or function generate the features to one of it's function.
 
@@ -67,6 +67,30 @@ private:
 
     util_random::Random generator_;
     vector_map::VectorMap map_;
+
+};
+
+class FeatureCalc{
+public:
+    FeatureCalc(A_star& planner, Graph& graph):
+        planner_(planner), graph_(graph), start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){
+    };
+    
+    void generateEllipDistValues(const navigation::PoseSE2& start,
+                                    const navigation::PoseSE2& goal);
+
+    float getEllipPathDist(GraphIndex& index);
+    
+
+private:
+    
+
+private:
+    std::map<GraphIndex, double> ellipDistValues_;
+    A_star planner_;
+    Graph graph_;
+    GraphIndex start_;
+    GraphIndex goal_;
 
 };
 

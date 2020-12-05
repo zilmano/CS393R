@@ -316,6 +316,7 @@ namespace planning {
                 }
             }
         }
+        location_cost_ = cost_so_far[goal_];
         cout << "A* start Done." << std::endl;
 
         std::list<GraphIndex> path;
@@ -329,6 +330,8 @@ namespace planning {
         curr_path_vertex_ = path_.begin();
         return path;
     }
+
+
 
     double A_star::calcCost(const GraphIndex& current, const GraphIndex& next){
         return std::sqrt(std::pow(next.x - current.x, 2) + std::pow(next.y - current.y, 2)*1.0);
