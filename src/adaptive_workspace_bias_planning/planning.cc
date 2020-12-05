@@ -5,6 +5,10 @@
 #include "shared/math/line2d.h"
 #include "shared/math/geometry.h"
 
+// For visualization
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/eigen.hpp>
+
 using Eigen::Vector2f;
 using navigation::PoseSE2;
 
@@ -36,7 +40,7 @@ namespace planning {
            for (int y = 0; y < numY; ++y) {
                for (int o = 0; o < numOrient; ++o) {
                     GraphIndex curr_vertex(x,y,o);
-                    Eigen::Vector2f loc = graph_.GetLocFromVertexIndex(numX,numY);
+                    Eigen::Vector2f loc = graph_.GetLocFromVertexIndex(x,y);
                     PoseSE2 current(loc.x(),loc.y(),0);
                     pathToStart = planner_.generatePath(current, start);
                     costToStart = planner_.getLocationCost(s);
@@ -54,25 +58,28 @@ namespace planning {
         return ellipDistValues_[index];
     }
 
-    void FeatureCalc::generateFrvValues() {
+    void FeatureCalc::GenerateFrvValues() {
         int numX = graph_.getNumVerticesX();
         int numY = graph_.getNumVerticesY();
         int numOrient = graph_.getNumOrient();
 
-        for (int x = 0; x < numX; ++x) {
-            for (int y = 0; y < numY; ++y) {
-                for (int o = 0; o < numOrient; ++o) {
-                    GraphIndex curr_vertex(x,y,o);
-                    Eigen::Vector2f loc = graph_.GetLocFromVertexIndex(numX,numY);
-                    frvValues_[curr_vertex] = calcFrv(loc);
-
-                }
-            }
+        if (numOrient != 1) {
+            std::string msg = "Cannot generate Bitmap for 3D image\n";
+            cout << msg;
+            throw msg;
         }
 
+        for (int x = 0; x < numX; ++x) {
+            for (int y = 0; y < numY; ++y) {
+                    GraphIndex curr_vertex(x,y,0);
+                    Eigen::Vector2f loc = graph_.GetLocFromVertexIndex(x, y);
+                    frvValues_[curr_vertex] = CalcFrv(loc);
+
+            }
+        }
     }
 
-    float FeatureCalc::calcFrv(Eigen::Vector2f loc) {
+    float FeatureCalc::CalcFrv(Eigen::Vector2f loc) {
         float min_dist = std::numeric_limits<float>::max();
         for (auto &line: map_.lines) {
             float dist_to_line;
@@ -95,6 +102,71 @@ namespace planning {
         return frvValues_[index];
     }
 
+    void FeatureCalc::GenerateFrvBitmap() {
+            Eigen::MatrixXf image;
+            image.resize(graph_.getNumVerticesX(), graph_.getNumVerticesY());
+
+            int numOrient = graph_.getNumOrient();
+            if (numOrient != 1) {
+                std::string msg = "Cannot generate Bitmap for 3D image\n";
+                cout << msg;
+                throw msg;
+            }
+
+            float max_val = 0;
+            for (auto const& bit: frvValues_) {
+                GraphIndex index = bit.first;
+                float val = bit.second;
+                image(index.x,index.y) = val;
+                if (val > max_val)
+                    max_val = val;
+            }
+
+            //scale image to 0-255
+            image *= (255/max_val);
+
+            cout << " Writing out bitmap " << endl;
+            NormalizedImWrite(image,"frv");
+
+    }
+
+    void FeatureCalc::GenerateEllipDistBitmap() {
+        Eigen::MatrixXf image;
+        image.resize(graph_.getNumVerticesX(), graph_.getNumVerticesY());
+
+        int numOrient = graph_.getNumOrient();
+        if (numOrient != 1) {
+            std::string msg = "Cannot generate Bitmap for 3D image\n";
+            cout << msg;
+            throw msg;
+        }
+
+        float max_val = 0;
+        for (auto const& bit: ellipDistValues_) {
+            GraphIndex index = bit.first;
+            float val = bit.second;
+            image(index.x,index.y) = val;
+            if (val > max_val)
+                max_val = val;
+        }
+
+        //scale image to 0-255
+        image *= (255/max_val);
+
+        cout << " Writing out bitmap " << endl;
+        NormalizedImWrite(image,"ellipi_dist");
+
+    }
+
+    template<typename EigenMatrixT>
+    void FeatureCalc::NormalizedImWrite(const EigenMatrixT & in, const std::string & title) {
+        cv::Mat cvimg;
+        auto maxele = in.maxCoeff();
+        Eigen::MatrixXf norm_img = in / maxele;
+        cv::eigen2cv(norm_img, cvimg);
+        cv::imwrite((title + ".png").c_str(), cvimg * 256.0);
+    }
+
 
     void  AWBPlanner::LoadMap(const std::string& map_file) {
         std::string full_map_file;
@@ -107,7 +179,21 @@ namespace planning {
 
         cout << "Loading map file '" << full_map_file << "'...." << endl;
         map_.Load(full_map_file);
-        cout << "Done loading map." << endl;\
+        cout << "Done loading map." << endl;
+
+        int num_orient = 1;
+        cout << "Generating Workspace graph..." << endl;
+        workspace_graph_ = Graph(ws_graph_spacing_,
+                                 map_x_bounds_(0),
+                                 map_x_bounds_(1),
+                                 map_y_bounds_(0),
+                                 map_y_bounds_(1),
+                                 num_orient,
+                                 margin_to_wall_,
+                                 map_);
+        cout << "Done creating workspace graph." << endl;
+        ws_planner_ = A_star(workspace_graph_);
+        feature_calc_.reset(new FeatureCalc(ws_planner_, workspace_graph_, map_));
 
     }
 

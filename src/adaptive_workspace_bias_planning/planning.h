@@ -8,14 +8,16 @@
 
 namespace planning {
 
+class FeatureCalc;
 class AWBPlanner {
 public:
      AWBPlanner(const Eigen::Vector2f& map_x_bounds,
-             const Eigen::Vector2f& map_y_bounds,
-             float margin_to_wall):
+                const Eigen::Vector2f& map_y_bounds,
+                float margin_to_wall,float ws_graph_spacing):
          map_x_bounds_(map_x_bounds),
          map_y_bounds_(map_y_bounds),
-         margin_to_wall_(margin_to_wall) {};
+         margin_to_wall_(margin_to_wall),
+         ws_graph_spacing_(ws_graph_spacing){};
      
      void LoadMap(const std::string& map_file);
      
@@ -29,6 +31,9 @@ public:
 
      // Use A* to find the best plan in the (3D) configuration space
      void GeneratePlan() {};
+
+     // For testing
+     const std::shared_ptr<FeatureCalc> GetFeatureCalc() const { return feature_calc_;};
 
 private:
     //Try to generate edge between two points in config space.
@@ -64,9 +69,11 @@ private:
     Eigen::Vector2f map_x_bounds_; // map is equivalent to workspace.
     Eigen::Vector2f map_y_bounds_; // map is equivalent to workspace.
     float margin_to_wall_;
+    float ws_graph_spacing_;
 
     util_random::Random generator_;
     vector_map::VectorMap map_;
+    std::shared_ptr<FeatureCalc> feature_calc_;
 
 };
 
@@ -79,14 +86,24 @@ public:
     
     void generateEllipDistValues(const navigation::PoseSE2& start,
                                     const navigation::PoseSE2& goal);
-
-    void generateFrvValues();
     float getEllipPathDist(GraphIndex& index);
+
+    void GenerateFrvValues();
     float GetFrvValue(GraphIndex& index);
     
+    // For testing
+    void GenerateFrvBitmap();
+    void GenerateEllipDistBitmap();
+
 
 private:
-    float calcFrv(Eigen::Vector2f loc);
+    float CalcFrv(Eigen::Vector2f loc);
+
+    // For Testing - Draw Image
+    template<typename EigenMatrixT>
+        void NormalizedImWrite(const EigenMatrixT & in, const std::string & title);
+
+
     
 
 private:
