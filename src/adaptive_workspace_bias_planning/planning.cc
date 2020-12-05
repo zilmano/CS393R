@@ -1,9 +1,9 @@
-<<<<<<< HEAD
 #include <cmath>
 #include <iterator>
 #include <shared/global_utils.h>
 #include "planning.h"
 #include "shared/math/line2d.h"
+#include "shared/math/geometry.h"
 
 using Eigen::Vector2f;
 using navigation::PoseSE2;
@@ -54,6 +54,62 @@ namespace planning {
         return ellipDistValues_[index];
     }
 
+    void FeatureCalc::generateFrvValues() {
+        int numX = graph_.getNumVerticesX();
+        int numY = graph_.getNumVerticesY();
+        int numOrient = graph_.getNumOrient();
+
+        for (int x = 0; x < numX; ++x) {
+            for (int y = 0; y < numY; ++y) {
+                for (int o = 0; o < numOrient; ++o) {
+                    GraphIndex curr_vertex(x,y,o);
+                    Eigen::Vector2f loc = graph_.GetLocFromVertexIndex(numX,numY);
+                    frvValues_[curr_vertex] = calcFrv(loc);
+
+                }
+            }
+        }
+
+    }
+
+    float FeatureCalc::calcFrv(Eigen::Vector2f loc) {
+        float min_dist = std::numeric_limits<float>::max();
+        for (auto &line: map_.lines) {
+            float dist_to_line;
+            Vector2f project_point;
+            geometry::ProjectPointOntoLineSegment(
+                    loc,
+                    line.p0,
+                    line.p1,
+                    &project_point,
+                    &dist_to_line);
+            dist_to_line = std::sqrt(dist_to_line);
+            if (dist_to_line < min_dist)
+                min_dist = dist_to_line;
+        }
+
+        return min_dist;
+    }
+
+    float FeatureCalc::GetFrvValue(GraphIndex& index) {
+        return frvValues_[index];
+    }
+
+
+    void  AWBPlanner::LoadMap(const std::string& map_file) {
+        std::string full_map_file;
+
+        if (map_file.find('.') == std::string::npos) {
+           full_map_file = "maps/" + map_file + "/" + map_file + ".vectormap.txt";
+        } else {
+           full_map_file = map_file;
+        }
+
+        cout << "Loading map file '" << full_map_file << "'...." << endl;
+        map_.Load(full_map_file);
+        cout << "Done loading map." << endl;\
+
+    }
 
     PoseSE2 AWBPlanner::SampleUniform(const Eigen::Vector2f& x_bounds,
                                       const Eigen::Vector2f& y_bounds,

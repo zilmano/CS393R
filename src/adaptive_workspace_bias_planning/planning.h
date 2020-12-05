@@ -17,7 +17,7 @@ public:
          map_y_bounds_(map_y_bounds),
          margin_to_wall_(margin_to_wall) {};
      
-     void load_map(){};
+     void LoadMap(const std::string& map_file);
      
      // Do the gradient based learning to find the best weights.
      void Train() {};
@@ -72,25 +72,33 @@ private:
 
 class FeatureCalc{
 public:
-    FeatureCalc(A_star& planner, Graph& graph):
-        planner_(planner), graph_(graph), start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){
+    FeatureCalc(A_star& planner, Graph& graph, vector_map::VectorMap map):
+        planner_(planner), graph_(graph), map_(map),
+        start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){
     };
     
     void generateEllipDistValues(const navigation::PoseSE2& start,
                                     const navigation::PoseSE2& goal);
 
+    void generateFrvValues();
     float getEllipPathDist(GraphIndex& index);
+    float GetFrvValue(GraphIndex& index);
     
 
 private:
+    float calcFrv(Eigen::Vector2f loc);
     
 
 private:
     std::map<GraphIndex, double> ellipDistValues_;
+    std::map<GraphIndex, double> frvValues_;
+
     A_star planner_;
     Graph graph_;
+    vector_map::VectorMap map_;
     GraphIndex start_;
     GraphIndex goal_;
+
 
 };
 
