@@ -68,14 +68,27 @@ void test_uniform_graph_gen(planning::AWBPlanner& planner) {
    cout << "Running Uniform RRT sampling test."<< endl;
    planner.GenerateSampledGraphUniform(PoseSE2(-33,19.9,0),Vector2f(-8,14));
    cout << "Finshed RRT." << endl;
-   //visualize_graph(planner.GetCSpaceGraph());
+
+}
+
+void test_adaptive_graph_gen(planning::AWBPlanner& planner) {
+   cout << "Running Adaptive RRT sampling test."<< endl;
+   const std::shared_ptr<FeatureCalc> feature_calc = planner.GetFeatureCalc();
+   cout << "Generating Frv values..." << endl;
+   feature_calc->GenerateFrvValues();
+   cout << "Calculate Gibbs distributionnedit..." << endl;
+   planner.InitWeights();
+   planner.RecalcAdpatedDistribution();
+   planner.GenerateProbabilityBitmap();
+   cout << "Generate Sampled Graph:" << endl;
+   planner.GenerateSampledGraphAdaptive(PoseSE2(-33,19.9,0),Vector2f(-8,14));
+   cout << "Finshed RRT." << endl;
 
 }
 
 void test_fvr(const planning::AWBPlanner& planner) {
     cout << "Running fvr caluclation test."<< endl;
     const std::shared_ptr<FeatureCalc> feature_calc = planner.GetFeatureCalc();
-
     cout << "Generating Frv values..." << endl;
     feature_calc->GenerateFrvValues();
     cout << "Generating Frv Bitmap..." << endl;
@@ -103,12 +116,14 @@ int main(int argc, char** argv) {
     float margin_to_wall = 0.1;
     float ws_grid_spacing = 0.05;
     unsigned long int random_seed = 23;
+    unsigned int feature_num = 2;
 
     planning::AWBPlanner sample_based_planner(
             map_x_bounds,
             map_y_bounds,
             margin_to_wall,
             ws_grid_spacing,
+            feature_num,
             random_seed);
 
     sample_based_planner.LoadMap("GDC1");
@@ -116,7 +131,7 @@ int main(int argc, char** argv) {
 
     // Enter your test code here
     //test_fvr(sample_based_planner);
-    test_uniform_graph_gen(sample_based_planner);
+    test_adaptive_graph_gen(sample_based_planner);
     ////
     RateLoop loop(20.0);
     while (run_ && ros::ok()) {

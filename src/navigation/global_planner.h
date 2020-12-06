@@ -96,7 +96,7 @@ public:
     navigation::PoseSE2 GetVertexPose(const NodePtr& vertex);
     std::size_t GetClosestVertex(const navigation::PoseSE2& pose);
     std::size_t GetNumVertices() {return vertices_.size();};
-    vector<Node> GetVertices() const {return vertices_;};
+    const vector<Node>& GetVertices() const {return vertices_;};
     NodePtr GetVertex(std::size_t index);
 
     void MergeGraph(const SimpleGraph& other,const NodePtr& edge_vertex_indx,

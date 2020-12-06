@@ -13,8 +13,20 @@ using Eigen::Vector2f;
 using navigation::PoseSE2;
 
 
+
+
 namespace planning {
-    
+    template<typename EigenMatrixT>
+    void NormalizedImWrite(const EigenMatrixT & in, const std::string & title) {
+        cv::Mat cvimg;
+        auto maxele = in.maxCoeff();
+        Eigen::MatrixXf norm_img = in / maxele;
+        cv::eigen2cv(norm_img, cvimg);
+        cv::imwrite((title + ".png").c_str(), cvimg * 256.0);
+    }
+
+
+
     void FeatureCalc::generateEllipDistValues(const navigation::PoseSE2& start,
                                                 const navigation::PoseSE2& goal){
         std::list<GraphIndex> pathToStart;
@@ -69,14 +81,22 @@ namespace planning {
             throw msg;
         }
 
+        float max_val = 0;
         for (int x = 0; x < numX; ++x) {
             for (int y = 0; y < numY; ++y) {
                     GraphIndex curr_vertex(x,y,0);
                     Eigen::Vector2f loc = graph_.GetLocFromVertexIndex(x, y);
                     frvValues_[curr_vertex] = CalcFrv(loc);
+                    if (frvValues_[curr_vertex] > max_val)
+                        max_val = frvValues_[curr_vertex];
 
             }
         }
+
+        for (auto& it: frvValues_) {
+            it.second /= max_val;
+        }
+
     }
 
     float FeatureCalc::CalcFrv(const Eigen::Vector2f& loc) {
@@ -126,7 +146,7 @@ namespace planning {
             image *= (255/max_val);
 
             cout << " Writing out bitmap " << endl;
-            NormalizedImWrite(image,"frv");
+            planning::NormalizedImWrite(image,"frv");
 
     }
 
@@ -154,23 +174,13 @@ namespace planning {
         image *= (255/max_val);
 
         cout << " Writing out bitmap " << endl;
-        NormalizedImWrite(image,"ellipi_dist");
+        planning::NormalizedImWrite(image,"ellipi_dist");
 
     }
-
-    template<typename EigenMatrixT>
-    void FeatureCalc::NormalizedImWrite(const EigenMatrixT & in, const std::string & title) {
-        cv::Mat cvimg;
-        auto maxele = in.maxCoeff();
-        Eigen::MatrixXf norm_img = in / maxele;
-        cv::eigen2cv(norm_img, cvimg);
-        cv::imwrite((title + ".png").c_str(), cvimg * 256.0);
-    }
-
 
     /*
-     * ABWPlanner calss starts here
-     */
+    * ABWPlanner calss starts here
+    */
     void  AWBPlanner::LoadMap(const std::string& map_file) {
         std::string full_map_file;
 
@@ -234,7 +244,22 @@ namespace planning {
 
     }
 
-    void AWBPlanner::GenerateSampledGraphUniform(const PoseSE2& start, const Vector2f& goal) {
+    void AWBPlanner::GenerateSampledGraphUniform(const PoseSE2& start,
+                                                  const Vector2f& goal) {
+
+        GenerateSampledGraphImpl(start,goal,false);
+    }
+
+    void AWBPlanner::GenerateSampledGraphAdaptive(const PoseSE2& start,
+                                                  const Vector2f& goal) {
+        GenerateSampledGraphImpl(start,goal,true);
+    }
+
+
+
+    void AWBPlanner::GenerateSampledGraphImpl(const PoseSE2& start,
+                                              const Vector2f& goal,
+                                              bool adaptive) {
         SimpleGraph start_tree;
         SimpleGraph goal_tree;
 
@@ -247,13 +272,21 @@ namespace planning {
         std::size_t search_max_steps = 1000000;
 
         while(step_num < search_max_steps) {
-            PoseSE2 cspace_point = SampleUniform(map_x_bounds_,map_y_bounds_,angle_bounds);
+            PoseSE2 cspace_point;
+            if (!adaptive)
+                cspace_point = SampleUniform(map_x_bounds_,map_y_bounds_,angle_bounds);
+            else
+                cspace_point = SampleFromAdaptedDistribution(angle_bounds);
+
             std::size_t closest_vertex_in_tree = start_tree.GetClosestVertex(cspace_point);
             PoseSE2 closest_vertex_pose = start_tree.GetVertexPose(closest_vertex_in_tree);
             if (GenerateEdge(cspace_point ,closest_vertex_pose)) {
                 std::size_t new_vertex = start_tree.AddVertex(cspace_point);
                 start_tree.AddEdge(closest_vertex_in_tree, new_vertex);
-                cspace_point = SampleUniform(map_x_bounds_,map_y_bounds_,angle_bounds);
+                if (!adaptive)
+                    cspace_point = SampleUniform(map_x_bounds_,map_y_bounds_,angle_bounds);
+                else
+                    cspace_point = SampleFromAdaptedDistribution(angle_bounds);
             }
 
             closest_vertex_in_tree = goal_tree.GetClosestVertex(cspace_point);
@@ -278,14 +311,13 @@ namespace planning {
                     }
                 }
             }
-            ++step_num;
 
-            if ((step_num % 10000)==0)
+            ++step_num;
+            if ((step_num % 10000)==0) {
                 cout << "-- Done sampling " << step_num << " steps."
                      << " Stree size: " << start_tree.GetNumVertices()
-                     << "Gtree size: " << goal_tree.GetNumVertices() << endl;
-
-
+                     << " Gtree size: " << goal_tree.GetNumVertices() << endl;
+            }
         }
 
         cout << "couldn't make a graph! steps " << step_num << endl;
@@ -297,24 +329,61 @@ namespace planning {
 
         std::size_t i = 0;
         float last_accum_prob = 0;
+        Eigen::VectorXf features;
+        features.resize(feature_num_);
+        E_prob_.resize(feature_num_);
         for (int x = 0; x < workspace_graph_.getNumVerticesX(); ++x) {
             for (int y = 0; y < workspace_graph_.getNumVerticesY(); ++y) {
                 GraphIndex graph_index(x, y, 0);
-                Eigen::VectorXf features;
 
-                features << feature_calc_->GetFrvValue(graph_index);
+                float feature_val = feature_calc_->GetFrvValue(graph_index);
+                if (feature_val != 0) {
+                    feature_val = 1-feature_val;
+                }
+                features << feature_val, 0;
                 // OLEG TO DO: Enable when generateEllipDistValues is available
-                // features << feature_calc_->GetEllipPathDist(graph_index);
-                features << 0;
+                // features << feature_val, feature_calc_->GetEllipPathDist(graph_index);
+                //features << 0;
 
                 float curr_prob = std::exp(weights_.dot(features));
+                cout << "curr_prob:" << curr_prob << " feature val:" << feature_val << "energy:" << weights_.dot(features) << endl;
                 probabilities_(i) = last_accum_prob + curr_prob;
+                E_prob_ += curr_prob*features;
                 last_accum_prob += curr_prob;
                 ++i;
             }
         }
 
-        probabilities_(i) /= probabilities_.sum();
+        probabilities_ /= last_accum_prob;
+        E_prob_ /= last_accum_prob;
+        /*for (auto i = 0; i < probabilities_.size(); ++i) {
+            cout << probabilities_(i) << endl;
+        }*/
+        cout << "Num Probs:" << i << endl;
+    }
+
+    void AWBPlanner::GenerateProbabilityBitmap() {
+        Eigen::MatrixXf image;
+        image.resize(workspace_graph_.getNumVerticesX(),workspace_graph_.getNumVerticesY());
+
+        int numOrient = workspace_graph_.getNumOrient();
+        if (numOrient != 1) {
+            std::string msg = "Cannot generate Bitmap for 3D image\n";
+            cout << msg;
+            throw msg;
+        }
+
+        GraphIndex index = probabilities_indx_to_graph_indx_[0];
+        image(index.x,index.y) = probabilities_(0);
+        for (long int i=1; i < probabilities_.size(); ++i) {
+            GraphIndex index = probabilities_indx_to_graph_indx_[i];
+            float val = probabilities_(i) -probabilities_(i-1);
+            image(index.x,index.y) = val;
+        }
+
+        cout << " Writing out bitmap: " << endl;
+        planning::NormalizedImWrite(image,"SamplingProbability");
+
     }
 
     navigation::PoseSE2 AWBPlanner::SampleFromAdaptedDistribution(const Eigen::Vector2f& angle_bounds) {
@@ -357,8 +426,57 @@ namespace planning {
         return PoseSE2(0,0,0);
     }
 
+    void AWBPlanner::Train() {
+
+        InitWeights();
+
+        //int batch_size = 5;
+        float reward = 0;
+        for (unsigned int i = 0; i < num_train_episodes_; ++i) {
+            PoseSE2 start(-33,19.9,0);
+            Vector2f goal(-8,14);
+            RecalcAdpatedDistribution();
+            //SampleStartAndGoal(start,goal);
+            GenerateSampledGraphAdaptive(start, goal);
+            reward += -cspace_graph_.GetNumVertices();
+            //if (i % batch_size == 0) { // update
+            UpdateGradient(reward);
+            reward = 0;
+            //}
+        }
+        RecalcAdpatedDistribution();
+    }
+
+    void AWBPlanner::UpdateGradient(float reward) {
+
+        Eigen::VectorXf grad_ni;
+        Eigen::VectorXf features;
+        grad_ni.resize(feature_num_);
+        grad_ni << 0, 0;
+        features.resize(feature_num_);
+        for (auto& node: cspace_graph_.GetVertices()) {
+            PoseSE2 vertex_pose = node.pose;
+            vertex_pose.angle = 0; // Reduce diminsionality to 2D
+            float f_rv = feature_calc_->GetFrvValue(workspace_graph_.GetClosestVertex(vertex_pose));
+            float f_elp = 0; // Oleg: Re-enable when Ellip dist is ready
+            features << f_rv, f_elp;
+            grad_ni += features;
+        }
+
+        // OLEG, in this case the R/T -s -1, because the reward function is equal to
+        grad_ni = (reward/cspace_graph_.GetNumVertices())*grad_ni - reward*E_prob_;
+        weights_ += lr_*grad_ni;
+    }
+
+    void AWBPlanner::SampleStartAndGoal(PoseSE2& pose, Vector2f &loc) {
+        //;
+
+    }
+
+
     void AWBPlanner::InitWeights() {
-        weights_ << 0.5, 0.5;
+        weights_.resize(feature_num_);
+        weights_ << 10, 10;
     }
 
 

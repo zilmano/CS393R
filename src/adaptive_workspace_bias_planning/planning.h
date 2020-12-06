@@ -14,11 +14,17 @@ public:
      AWBPlanner(const Eigen::Vector2f& map_x_bounds,
                 const Eigen::Vector2f& map_y_bounds,
                 float margin_to_wall,float ws_graph_spacing,
-                unsigned long int random_seed=0):
+                unsigned int feature_num = 2,
+                unsigned long int random_seed=0,
+                unsigned int num_train_episodes=1000,
+                float lr = 0.00001):
          map_x_bounds_(map_x_bounds),
          map_y_bounds_(map_y_bounds),
          margin_to_wall_(margin_to_wall),
-         ws_graph_spacing_(ws_graph_spacing){
+         ws_graph_spacing_(ws_graph_spacing),
+         feature_num_(feature_num),
+         num_train_episodes_(num_train_episodes),
+         lr_(lr){
 
          generator_ = util_random::Random(random_seed);
      };
@@ -26,12 +32,13 @@ public:
      void LoadMap(const std::string& map_file);
      
      // Do the gradient based learning to find the best weights.
-     void Train() {};
+     void Train();
      
-     // Use sampling using the weights to generate the graph, and store it in the new graph class.
-     void GenerateSampledGraphUniform(const navigation::PoseSE2& start, const Eigen::Vector2f& goal);
-     
-     void GenerateSampledGraphAdaptive(const navigation::PoseSE2& start, const Eigen::Vector2f& goal) {};
+     // Use sampling using the weights to generate the C-Space graph, and store it in the new graph class.
+     void GenerateSampledGraphUniform(const navigation::PoseSE2& start,
+                                      const Eigen::Vector2f& goal);
+     void GenerateSampledGraphAdaptive(const navigation::PoseSE2& start,
+                                       const Eigen::Vector2f& goal);
 
      // Use A* to find the best plan in the (3D) configuration space
      void GeneratePlan() {};
@@ -42,54 +49,71 @@ public:
      const SimpleGraph& GetStartTreeGraph() { return start_tree_;};
      const SimpleGraph& GetGoalTreeGraph() { return goal_tree_;};
 
+     void GenerateProbabilityBitmap();
+     //OLEG: Make private later, this is for test;
+     void RecalcAdpatedDistribution();
+     void InitWeights();
+
+
 
 private:
     //Try to generate edge between two points in config space.
     bool GenerateEdge(navigation::PoseSE2 v1, navigation::PoseSE2 v2);
 
+    // CSpace Sampling implementation, both uniform and adaptive
+    void GenerateSampledGraphImpl(const navigation::PoseSE2& start,
+                                  const Eigen::Vector2f& goal,
+                                  bool adaptive);
+
+    // Sample unifrom vertex in CSpace
     navigation::PoseSE2 SampleUniform(const Eigen::Vector2f& x_bounds,
                                  const Eigen::Vector2f& y_bounds,
                                  const Eigen::Vector2f& angle_bounds);
 
-    // our line sampling from assignment 2 goes here.
+    // Sa,
     navigation::PoseSE2 SampleFromAdaptedDistribution(const Eigen::Vector2f& angle_bounds);
 
-    void RecalcAdpatedDistribution();
+    void UpdateGradient(float reward);
+    void SampleStartAndGoal(PoseSE2& pose, Eigen::Vector2f &loc);
 
-    void InitWeights();
+
+
 
 private:
+    //2D worksapce graph
     Graph workspace_graph_;
 
+    //3D CSpace planning graph
     SimpleGraph cspace_graph_;
-    // Dbg trees
+
+    // For testing
     SimpleGraph start_tree_;
     SimpleGraph goal_tree_;
 
+    // Planner in workspace to calc elliptical distance.
     A_star ws_planner_;
     
     // OLEG: This has to be a modified A* implementation so that it works with the new graph class that represent the sampled graph.
     A_star cspace_planner_;
 
-    // Vector holding our weights used for the Gibbs sampling
+    // features, weights, and probabilities
     Eigen::VectorXf weights_;
     Eigen::VectorXf probabilities_;
     vector<GraphIndex> probabilities_indx_to_graph_indx_;
+    Eigen::VectorXf E_prob_;
     
-
-    //To Add member: Features class "FeatureCalc", can take the astar ws_planner as an argument to contructor 
-    //        or function generate the features to one of it's function.
-
-    //To add member: Class to store the sampled config space graph.
-
+    // Parameters
     Eigen::Vector2f map_x_bounds_; // map is equivalent to workspace.
     Eigen::Vector2f map_y_bounds_; // map is equivalent to workspace.
     float margin_to_wall_;
     float ws_graph_spacing_;
+    unsigned int feature_num_;
+    unsigned int num_train_episodes_;
+    float lr_;
 
     util_random::Random generator_;
     vector_map::VectorMap map_;
-    std::shared_ptr<FeatureCalc> feature_calc_;
+    std::shared_ptr<FeatureCalc> feature_calc_; // Feature Calculator class
 
 };
 
