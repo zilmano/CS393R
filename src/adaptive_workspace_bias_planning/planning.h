@@ -13,11 +13,15 @@ class AWBPlanner {
 public:
      AWBPlanner(const Eigen::Vector2f& map_x_bounds,
                 const Eigen::Vector2f& map_y_bounds,
-                float margin_to_wall,float ws_graph_spacing):
+                float margin_to_wall,float ws_graph_spacing,
+                unsigned long int random_seed=0):
          map_x_bounds_(map_x_bounds),
          map_y_bounds_(map_y_bounds),
          margin_to_wall_(margin_to_wall),
-         ws_graph_spacing_(ws_graph_spacing){};
+         ws_graph_spacing_(ws_graph_spacing){
+
+         generator_ = util_random::Random(random_seed);
+     };
      
      void LoadMap(const std::string& map_file);
      
@@ -34,6 +38,10 @@ public:
 
      // For testing
      const std::shared_ptr<FeatureCalc> GetFeatureCalc() const { return feature_calc_;};
+     const SimpleGraph& GetCSpaceGraph() { return cspace_graph_;};
+     const SimpleGraph& GetStartTreeGraph() { return start_tree_;};
+     const SimpleGraph& GetGoalTreeGraph() { return goal_tree_;};
+
 
 private:
     //Try to generate edge between two points in config space.
@@ -44,14 +52,19 @@ private:
                                  const Eigen::Vector2f& angle_bounds);
 
     // our line sampling from assignment 2 goes here.
-    void SampleFromAdaptedDisribution() {};
+    navigation::PoseSE2 SampleFromAdaptedDistribution(const Eigen::Vector2f& angle_bounds);
 
+    void RecalcAdpatedDistribution();
 
+    void InitWeights();
 
 private:
     Graph workspace_graph_;
 
-    SimpleGraph cspace_graph;
+    SimpleGraph cspace_graph_;
+    // Dbg trees
+    SimpleGraph start_tree_;
+    SimpleGraph goal_tree_;
 
     A_star ws_planner_;
     
@@ -59,8 +72,11 @@ private:
     A_star cspace_planner_;
 
     // Vector holding our weights used for the Gibbs sampling
-    Eigen::VectorXd weights_;
+    Eigen::VectorXf weights_;
+    Eigen::VectorXf probabilities_;
+    vector<GraphIndex> probabilities_indx_to_graph_indx_;
     
+
     //To Add member: Features class "FeatureCalc", can take the astar ws_planner as an argument to contructor 
     //        or function generate the features to one of it's function.
 
@@ -86,10 +102,10 @@ public:
     
     void generateEllipDistValues(const navigation::PoseSE2& start,
                                     const navigation::PoseSE2& goal);
-    float getEllipPathDist(GraphIndex& index);
+    float getEllipPathDist(const GraphIndex& index);
 
     void GenerateFrvValues();
-    float GetFrvValue(GraphIndex& index);
+    float GetFrvValue(const GraphIndex& index);
     
     // For testing
     void GenerateFrvBitmap();
@@ -97,14 +113,11 @@ public:
 
 
 private:
-    float CalcFrv(Eigen::Vector2f loc);
+    float CalcFrv(const Eigen::Vector2f& loc);
 
     // For Testing - Draw Image
     template<typename EigenMatrixT>
         void NormalizedImWrite(const EigenMatrixT & in, const std::string & title);
-
-
-    
 
 private:
     std::map<GraphIndex, double> ellipDistValues_;

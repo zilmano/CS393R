@@ -54,7 +54,7 @@ namespace planning {
         } 
     }
 
-    float FeatureCalc::getEllipPathDist(GraphIndex& index){
+    float FeatureCalc::getEllipPathDist(const GraphIndex& index){
         return ellipDistValues_[index];
     }
 
@@ -79,7 +79,7 @@ namespace planning {
         }
     }
 
-    float FeatureCalc::CalcFrv(Eigen::Vector2f loc) {
+    float FeatureCalc::CalcFrv(const Eigen::Vector2f& loc) {
         float min_dist = std::numeric_limits<float>::max();
         for (auto &line: map_.lines) {
             float dist_to_line;
@@ -98,7 +98,7 @@ namespace planning {
         return min_dist;
     }
 
-    float FeatureCalc::GetFrvValue(GraphIndex& index) {
+    float FeatureCalc::GetFrvValue(const GraphIndex& index) {
         return frvValues_[index];
     }
 
@@ -168,6 +168,9 @@ namespace planning {
     }
 
 
+    /*
+     * ABWPlanner calss starts here
+     */
     void  AWBPlanner::LoadMap(const std::string& map_file) {
         std::string full_map_file;
 
@@ -195,6 +198,22 @@ namespace planning {
         ws_planner_ = A_star(workspace_graph_);
         feature_calc_.reset(new FeatureCalc(ws_planner_, workspace_graph_, map_));
 
+        // Resize the holder of probabilities and probability index mapping to new map graph
+       int numX = workspace_graph_.getNumVerticesX();
+       int numY = workspace_graph_.getNumVerticesY();
+
+       probabilities_.resize(numY*numX);
+       probabilities_indx_to_graph_indx_.resize(numY*numX);
+       //const std::map<GraphIndex, double>& frvValues = feature_calc_.GetFrvValues();
+       //probabilities_.resize(frvValues.size());
+       //probabilities_indx_to_graph_indx_.resize(frvValues.size());
+       std::size_t i = 0;
+       for (int x = 0; x < workspace_graph_.getNumVerticesX(); ++x) {
+            for (int y = 0; y < workspace_graph_.getNumVerticesY(); ++y) {
+                probabilities_indx_to_graph_indx_[i] = GraphIndex(x,y,0);
+                ++i;
+            }
+       }
     }
 
     PoseSE2 AWBPlanner::SampleUniform(const Eigen::Vector2f& x_bounds,
@@ -208,7 +227,7 @@ namespace planning {
     bool AWBPlanner::GenerateEdge(PoseSE2 v1, navigation::PoseSE2 v2) {
         geometry::line2f edge(v1.loc, v2.loc);
         for (auto &line: map_.lines) {
-          if (line.CloserThan(edge.p0,edge.p1,margin_to_wall_))
+          if (line.CloserThan(edge.p0,edge.p1,margin_to_wall_) || edge.Length() > 2)
              return false;
         }
         return true;
@@ -252,14 +271,103 @@ namespace planning {
                         if (GenerateEdge(start_tree_vertex_pose, goal_tree_vertex_pose)) {
                             start_tree.MergeGraph(goal_tree, start_tree.GetVertex(i),
                                                   goal_tree.GetVertex(j));
-                            cspace_graph = start_tree;
+                            cspace_graph_ = start_tree;
+                            cout << "made a graph! steps " << step_num << endl;
                             return;
                         }
                     }
                 }
             }
             ++step_num;
+
+            if ((step_num % 10000)==0)
+                cout << "-- Done sampling " << step_num << " steps."
+                     << " Stree size: " << start_tree.GetNumVertices()
+                     << "Gtree size: " << goal_tree.GetNumVertices() << endl;
+
+
         }
+
+        cout << "couldn't make a graph! steps " << step_num << endl;
+        start_tree_ = start_tree;
+        goal_tree_ = goal_tree;
     }
+
+    void AWBPlanner::RecalcAdpatedDistribution() {
+
+        std::size_t i = 0;
+        float last_accum_prob = 0;
+        for (int x = 0; x < workspace_graph_.getNumVerticesX(); ++x) {
+            for (int y = 0; y < workspace_graph_.getNumVerticesY(); ++y) {
+                GraphIndex graph_index(x, y, 0);
+                Eigen::VectorXf features;
+
+                features << feature_calc_->GetFrvValue(graph_index);
+                // OLEG TO DO: Enable when generateEllipDistValues is available
+                // features << feature_calc_->GetEllipPathDist(graph_index);
+                features << 0;
+
+                float curr_prob = std::exp(weights_.dot(features));
+                probabilities_(i) = last_accum_prob + curr_prob;
+                last_accum_prob += curr_prob;
+                ++i;
+            }
+        }
+
+        probabilities_(i) /= probabilities_.sum();
+    }
+
+    navigation::PoseSE2 AWBPlanner::SampleFromAdaptedDistribution(const Eigen::Vector2f& angle_bounds) {
+        float x = generator_.UniformRandom(0,1);
+
+        // Sanity check
+        if (probabilities_.size() !=
+                (long int)(workspace_graph_.getNumVerticesX()*
+                           workspace_graph_.getNumVerticesY())) {
+            std::string msg = "AWBPlanner::SampleFromAdaptedDistribution: Internal Error- Discrepancies with array sizes";
+            cout << msg << endl;
+            throw msg;
+        }
+
+        if (x <= probabilities_(0)) {
+            GraphIndex graph_index = probabilities_indx_to_graph_indx_[0];
+            return PoseSE2(
+                    workspace_graph_.GetLocFromVertexIndex(
+                            graph_index.x,
+                            graph_index.y),
+                    generator_.UniformRandom(angle_bounds(0), angle_bounds(1)));
+        }
+
+        for(long int i = 1; i < probabilities_.size(); ++i) {
+            if (x <=  probabilities_(i)) {
+                GraphIndex graph_index = probabilities_indx_to_graph_indx_[i];
+                return PoseSE2(
+                        workspace_graph_.GetLocFromVertexIndex(
+                                graph_index.x,
+                                graph_index.y),
+                        generator_.UniformRandom(angle_bounds(0), angle_bounds(1)));
+            }
+        }
+
+        // Sanity check
+        std::string msg = "AWBPlanner::SampleFromAdaptedDistribution: some issue with probabilities_, do not sum to 1.";
+        cout << msg << endl;
+        throw msg;
+
+        return PoseSE2(0,0,0);
+    }
+
+    void AWBPlanner::InitWeights() {
+        weights_ << 0.5, 0.5;
+    }
+
+
+
+
+
+
+
+
+
 }
 
