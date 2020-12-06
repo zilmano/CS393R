@@ -36,9 +36,7 @@ namespace planning {
         float costToStart;
         float costToGoal;
         float costComplete;
-
         float ellipDist;
-        GraphIndex s = graph_.GetClosestVertex(start);
         GraphIndex g = graph_.GetClosestVertex(goal);
 
         completePath = planner_.generatePath(start, goal);
@@ -48,17 +46,15 @@ namespace planning {
         int numY = graph_.getNumVerticesY();
         int numOrient = graph_.getNumOrient();
 
+        std::map<GraphIndex, double> startCosts = planner_.generateDijCost(start);
+        std::map<GraphIndex, double> goalCosts = planner_.generateDijCost(goal);
+
         for (int x = 0; x < numX; ++x) {
            for (int y = 0; y < numY; ++y) {
                for (int o = 0; o < numOrient; ++o) {
                     GraphIndex curr_vertex(x,y,o);
-                    Eigen::Vector2f loc = graph_.GetLocFromVertexIndex(x,y);
-                    PoseSE2 current(loc.x(),loc.y(),0);
-                    pathToStart = planner_.generatePath(current, start);
-                    costToStart = planner_.getLocationCost(s);
-                    pathToGoal = planner_.generatePath(current, goal);
-                    costToGoal = planner_.getLocationCost(g);
-
+                    costToStart = startCosts[curr_vertex];
+                    costToGoal = goalCosts[curr_vertex];
                     ellipDist = costToStart + costToGoal - costComplete;
                     ellipDistValues_[curr_vertex] = ellipDist;
                 }

@@ -95,6 +95,17 @@ void test_fvr(const planning::AWBPlanner& planner) {
     feature_calc->GenerateFrvBitmap();
 }
 
+void test_ellip_path(const planning::AWBPlanner& planner) {
+    cout << "Running ellip path caluclation test."<< endl;
+    const std::shared_ptr<FeatureCalc> feature_calc = planner.GetFeatureCalc();
+
+    cout << "Generating Frv values..." << endl;
+    PoseSE2 start(-33,19.9,0);
+    PoseSE2 goal(33,19.9,0);
+    feature_calc->generateEllipDistValues(start, goal);
+    cout << "Generating Frv Bitmap..." << endl;
+    feature_calc->GenerateEllipDistBitmap();
+}
 
 
 int main(int argc, char** argv) {
@@ -132,7 +143,10 @@ int main(int argc, char** argv) {
     // Enter your test code here
     //test_fvr(sample_based_planner);
     test_adaptive_graph_gen(sample_based_planner);
-    ////
+
+    //test_ellip_path(sample_based_planner);
+    //test_uniform_graph_gen(sample_based_planner);
+
     RateLoop loop(20.0);
     while (run_ && ros::ok()) {
         ros::spinOnce();
