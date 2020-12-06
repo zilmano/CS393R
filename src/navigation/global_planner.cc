@@ -275,7 +275,7 @@ namespace planning {
           return 2*M_PI*(1+frac);
     }
 
-    std::list<GraphIndex> A_star::generatePath(const navigation::PoseSE2& start, const navigation::PoseSE2& goal){
+    std::list<GraphIndex> A_star::generatePath(const navigation::PoseSE2& start, const navigation::PoseSE2& goal, const bool& heuristic){
 
         cout << "\n\nStarting generatePath..." << endl;
                 debug::print_loc(start.loc," start loc", false);
@@ -309,7 +309,11 @@ namespace planning {
                 //cout << "Neighbor cost:" << new_cost << " Current Cost:" << cost_so_far[current] << std::endl;
                 if(cost_so_far.find(neighbor) == cost_so_far.end() || new_cost < cost_so_far[neighbor]){
                     cost_so_far[neighbor] = new_cost;
-                    double priority = new_cost + A_star::calcHeuristic(neighbor);
+                    double priority;
+                    if(heuristic){
+                        priority = new_cost + A_star::calcHeuristic(neighbor);
+                    }
+                    priority = new_cost;
                     frontier.emplace(priority, neighbor);
                     came_from[neighbor] = current;
                     //cout << "New cost found" << std::endl;
@@ -332,10 +336,6 @@ namespace planning {
     }
 
     std::map<GraphIndex, double> A_star::generateDijCost(const navigation::PoseSE2& loc){
-        cout << "\n\nStarting generatePath..." << endl;
-                debug::print_loc(start.loc," start loc", false);
-                debug::print_loc(goal.loc," goal loc", true);
-
         GraphIndex location = graph_.GetClosestVertex(loc);
         
         std::priority_queue<element, std::vector<element>, std::greater<element>> frontier;
@@ -367,7 +367,7 @@ namespace planning {
                 }
             }
         }
-        cout << "Dijkstra's start Done." << std::endl;
+        cout << "Dijkstra's Done." << std::endl;
         return cost_so_far;
     }
 

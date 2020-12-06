@@ -184,7 +184,8 @@ public:
           graph_(graph), start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){};
 
     std::list<GraphIndex> generatePath(const navigation::PoseSE2& start,
-                                       const navigation::PoseSE2& goal);
+                                       const navigation::PoseSE2& goal,
+                                       const bool& heuristic = true);
 
     std::map<GraphIndex, double> generateDijCost(const navigation::PoseSE2& loc);
 
