@@ -39,7 +39,7 @@ namespace planning {
         float ellipDist;
         GraphIndex g = graph_.GetClosestVertex(goal);
 
-        completePath = planner_.generatePath(start, goal);
+        completePath = planner_.generatePath(start, goal, false);
         costComplete = planner_.getLocationCost(g);
 
         int numX = graph_.getNumVerticesX();
