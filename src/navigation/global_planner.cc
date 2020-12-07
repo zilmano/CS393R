@@ -331,16 +331,16 @@ namespace planning {
         return path;
     }
 
-    std::map<GraphIndex, double> A_star::generateDijCost(const navigation::PoseSE2& loc){
+    std::map<GraphIndex, float> A_star::generateDijCost(const navigation::PoseSE2& loc){
         cout << "\n\nStarting generatePath..." << endl;
-                debug::print_loc(start.loc," start loc", false);
-                debug::print_loc(goal.loc," goal loc", true);
+                //debug::print_loc(start.loc," start loc", false);
+                //debug::print_loc(goal.loc," goal loc", true);
 
         GraphIndex location = graph_.GetClosestVertex(loc);
         
         std::priority_queue<element, std::vector<element>, std::greater<element>> frontier;
         std::map<GraphIndex, GraphIndex> came_from;
-        std::map<GraphIndex, double> cost_so_far;
+        std::map<GraphIndex, float> cost_so_far;
 
         frontier.emplace(0,location);
         came_from[location] = location;
@@ -357,7 +357,7 @@ namespace planning {
             std::list<GraphIndex> neighbors = graph_.GetVertexNeighbors(current);
             for(auto &neighbor : neighbors){
                 //cout << "Neighbor: " << "X id:" << neighbor.x << " Y id:" << neighbor.y << std::endl;
-                double new_cost = cost_so_far[current] + A_star::calcCost(current, neighbor);
+                float new_cost = cost_so_far[current] + A_star::calcCost(current, neighbor);
                 //cout << "Neighbor cost:" << new_cost << " Current Cost:" << cost_so_far[current] << std::endl;
                 if(cost_so_far.find(neighbor) == cost_so_far.end() || new_cost < cost_so_far[neighbor]){
                     cost_so_far[neighbor] = new_cost;

@@ -27,7 +27,7 @@ namespace planning {
 
 
 
-    void FeatureCalc::generateEllipDistValues(const navigation::PoseSE2& start,
+    void FeatureCalc::GenerateEllipDistValues(const navigation::PoseSE2& start,
                                                 const navigation::PoseSE2& goal){
         std::list<GraphIndex> pathToStart;
         std::list<GraphIndex> pathToGoal;
@@ -46,9 +46,12 @@ namespace planning {
         int numY = graph_.getNumVerticesY();
         int numOrient = graph_.getNumOrient();
 
-        std::map<GraphIndex, double> startCosts = planner_.generateDijCost(start);
-        std::map<GraphIndex, double> goalCosts = planner_.generateDijCost(goal);
+        std::map<GraphIndex, float> startCosts = planner_.generateDijCost(start);
+        std::map<GraphIndex, float> goalCosts = planner_.generateDijCost(goal);
 
+        cout << "costComplete:" << costComplete << endl;
+        float max_val = 0;
+        float min_val = 0;
         for (int x = 0; x < numX; ++x) {
            for (int y = 0; y < numY; ++y) {
                for (int o = 0; o < numOrient; ++o) {
@@ -56,13 +59,26 @@ namespace planning {
                     costToStart = startCosts[curr_vertex];
                     costToGoal = goalCosts[curr_vertex];
                     ellipDist = costToStart + costToGoal - costComplete;
+                    // OLEG DBG:: remove when nathan does djikstra for costComplete
+                    if (ellipDist <= 0 && costToStart > 0 && costToGoal > 0 ) {
+                     if (ellipDist < min_val)
+                       min_val = ellipDist;
+                    }
                     ellipDistValues_[curr_vertex] = ellipDist;
-                }
+                    if (ellipDist > max_val)
+                        max_val = ellipDist;
+               }
             }
-        } 
+        }
+        cout << "max val:" << max_val << endl;
+        cout << "min_val:" << min_val << endl;
+        for (auto& it: ellipDistValues_) {
+            it.second -= (min_val - 0.00001);
+            it.second /= max_val;
+        }
     }
 
-    float FeatureCalc::getEllipPathDist(const GraphIndex& index){
+    float FeatureCalc::GetEllipPathDist(const GraphIndex& index){
         return ellipDistValues_[index];
     }
 
@@ -332,17 +348,21 @@ namespace planning {
             for (int y = 0; y < workspace_graph_.getNumVerticesY(); ++y) {
                 GraphIndex graph_index(x, y, 0);
 
-                float feature_val = feature_calc_->GetFrvValue(graph_index);
-                if (feature_val != 0) {
-                    feature_val = 1-feature_val;
+                float frv = feature_calc_->GetFrvValue(graph_index);
+                if (frv > 0.0015) {
+                    frv = 1-frv;
                 }
-                features << feature_val, 0;
-                // OLEG TO DO: Enable when generateEllipDistValues is available
-                // features << feature_val, feature_calc_->GetEllipPathDist(graph_index);
-                //features << 0;
+                float elip_dist = feature_calc_->GetEllipPathDist(graph_index);
+                if (elip_dist >= 0) {
+                    elip_dist = 1-elip_dist;
+                } else {
+                    elip_dist = 0;
+                }
 
+                features << frv, elip_dist;
+                //features << elip_dist, 0;
                 float curr_prob = std::exp(weights_.dot(features));
-                cout << "curr_prob:" << curr_prob << " feature val:" << feature_val << "energy:" << weights_.dot(features) << endl;
+                //cout << "curr_prob:" << curr_prob << " feature val:" << frv_val << "energy:" << weights_.dot(features) << endl;
                 probabilities_(i) = last_accum_prob + curr_prob;
                 E_prob_ += curr_prob*features;
                 last_accum_prob += curr_prob;
@@ -428,9 +448,11 @@ namespace planning {
 
         //int batch_size = 5;
         float reward = 0;
+        PoseSE2 start(-33,19.9,0);
+        Vector2f goal(-8,14);
+        feature_calc_->GenerateFrvValues();
+        feature_calc_->GenerateEllipDistValues(start, PoseSE2(goal,0));
         for (unsigned int i = 0; i < num_train_episodes_; ++i) {
-            PoseSE2 start(-33,19.9,0);
-            Vector2f goal(-8,14);
             RecalcAdpatedDistribution();
             //SampleStartAndGoal(start,goal);
             GenerateSampledGraphAdaptive(start, goal);
@@ -439,6 +461,7 @@ namespace planning {
             UpdateGradient(reward);
             reward = 0;
             //}
+            cout << " -- Train Episode " << i << "finished." << endl;
         }
         RecalcAdpatedDistribution();
     }
@@ -461,6 +484,7 @@ namespace planning {
 
         // OLEG, in this case the R/T -s -1, because the reward function is equal to
         grad_ni = (reward/cspace_graph_.GetNumVertices())*grad_ni - reward*E_prob_;
+        cout << "  gradient update step:" << lr_*grad_ni << endl;
         weights_ += lr_*grad_ni;
     }
 
@@ -472,7 +496,7 @@ namespace planning {
 
     void AWBPlanner::InitWeights() {
         weights_.resize(feature_num_);
-        weights_ << 10, 10;
+        weights_ << 5, 5;
     }
 
 

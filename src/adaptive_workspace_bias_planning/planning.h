@@ -124,9 +124,9 @@ public:
         start_(GraphIndex(0,0,0)), goal_(GraphIndex(0,0,0)){
     };
     
-    void generateEllipDistValues(const navigation::PoseSE2& start,
+    void GenerateEllipDistValues(const navigation::PoseSE2& start,
                                     const navigation::PoseSE2& goal);
-    float getEllipPathDist(const GraphIndex& index);
+    float GetEllipPathDist(const GraphIndex& index);
 
     void GenerateFrvValues();
     float GetFrvValue(const GraphIndex& index);
@@ -144,8 +144,8 @@ private:
         void NormalizedImWrite(const EigenMatrixT & in, const std::string & title);
 
 private:
-    std::map<GraphIndex, double> ellipDistValues_;
-    std::map<GraphIndex, double> frvValues_;
+    std::map<GraphIndex, float> ellipDistValues_;
+    std::map<GraphIndex, float> frvValues_;
 
     A_star planner_;
     Graph graph_;

@@ -72,19 +72,38 @@ void test_uniform_graph_gen(planning::AWBPlanner& planner) {
 }
 
 void test_adaptive_graph_gen(planning::AWBPlanner& planner) {
+   PoseSE2 start(-33,19.9,0);
+   Vector2f goal(-8,14);
+
    cout << "Running Adaptive RRT sampling test."<< endl;
    const std::shared_ptr<FeatureCalc> feature_calc = planner.GetFeatureCalc();
    cout << "Generating Frv values..." << endl;
    feature_calc->GenerateFrvValues();
-   cout << "Calculate Gibbs distributionnedit..." << endl;
+   feature_calc->GenerateEllipDistValues(start, PoseSE2(goal,0));
+   feature_calc->GenerateEllipDistBitmap();
+   cout << "Calculate Gibbs distribution..." << endl;
    planner.InitWeights();
    planner.RecalcAdpatedDistribution();
    planner.GenerateProbabilityBitmap();
    cout << "Generate Sampled Graph:" << endl;
-   planner.GenerateSampledGraphAdaptive(PoseSE2(-33,19.9,0),Vector2f(-8,14));
+   planner.GenerateSampledGraphAdaptive(start, goal);
    cout << "Finshed RRT." << endl;
+}
+
+void test_training(planning::AWBPlanner& planner) {
+    cout << "Start Training Policy Gradient..."<< endl;
+    planner.Train();
+    cout << "Done training." << endl;
+    cout << "Generate PRobability image..." << endl;
+    planner.GenerateProbabilityBitmap();
+    cout << " Generate Sampled Graph" << endl;
+    PoseSE2 start(-33,19.9,0);
+    Vector2f goal(-8,14);
+    planner.GenerateSampledGraphAdaptive(start, goal);
 
 }
+
+
 
 void test_fvr(const planning::AWBPlanner& planner) {
     cout << "Running fvr caluclation test."<< endl;
@@ -102,7 +121,7 @@ void test_ellip_path(const planning::AWBPlanner& planner) {
     cout << "Generating Frv values..." << endl;
     PoseSE2 start(-33,19.9,0);
     PoseSE2 goal(33,19.9,0);
-    feature_calc->generateEllipDistValues(start, goal);
+    feature_calc->GenerateEllipDistValues(start, goal);
     cout << "Generating Frv Bitmap..." << endl;
     feature_calc->GenerateEllipDistBitmap();
 }
@@ -142,10 +161,10 @@ int main(int argc, char** argv) {
 
     // Enter your test code here
     //test_fvr(sample_based_planner);
-    test_adaptive_graph_gen(sample_based_planner);
-
+    //test_adaptive_graph_gen(sample_based_planner);
+    //test_training(sample_based_planner);
     //test_ellip_path(sample_based_planner);
-    //test_uniform_graph_gen(sample_based_planner);
+    test_uniform_graph_gen(sample_based_planner);
 
     RateLoop loop(20.0);
     while (run_ && ros::ok()) {

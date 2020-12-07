@@ -186,7 +186,7 @@ public:
     std::list<GraphIndex> generatePath(const navigation::PoseSE2& start,
                                        const navigation::PoseSE2& goal);
 
-    std::map<GraphIndex, double> generateDijCost(const navigation::PoseSE2& loc);
+    std::map<GraphIndex, float> generateDijCost(const navigation::PoseSE2& loc);
 
     float getLocationCost(const GraphIndex& index){
         return location_cost_;
