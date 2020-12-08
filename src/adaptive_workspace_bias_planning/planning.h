@@ -15,8 +15,8 @@ public:
                 const Eigen::Vector2f& map_y_bounds,
                 float margin_to_wall,float ws_graph_spacing,
                 unsigned int feature_num = 2,
-                unsigned long int random_seed=0,
-                unsigned int num_train_episodes=1000,
+                unsigned long int random_seed=27,
+                unsigned int num_train_episodes=600,
                 float lr = 0.00001):
          map_x_bounds_(map_x_bounds),
          map_y_bounds_(map_y_bounds),
@@ -31,21 +31,26 @@ public:
      
      void LoadMap(const std::string& map_file);
      
-     // Do the gradient based learning to find the best weights.
-     void Train();
+     // Do the REINFORCE gradient based learning to find the best weights.
+     void Train(bool random_paths=false);
      
-     // Use sampling using the weights to generate the C-Space graph, and store it in the new graph class.
-     void GenerateSampledGraphUniform(const navigation::PoseSE2& start,
-                                      const Eigen::Vector2f& goal);
+     // Use bidir-RRT sampling using the feature baed distrubytuib to generate the C-Space graph, and store it in the new graph class.
      void GenerateSampledGraphAdaptive(const navigation::PoseSE2& start,
                                        const Eigen::Vector2f& goal);
+     // bidir-RRT uniform sampler, for comparison.
+     void GenerateSampledGraphUniform(const navigation::PoseSE2& start,
+                                      const Eigen::Vector2f& goal);
+
 
      // Use A* to find the best plan in the (3D) configuration space
+     // We actually did not need this in the experiments, as we only show
+     // the vertices. The connectivity property of biderectional RRT guarantess
+     // a plan can be made.
      void GeneratePlan() {};
 
      // For testing
      const std::shared_ptr<FeatureCalc> GetFeatureCalc() const { return feature_calc_;};
-     const SimpleGraph& GetCSpaceGraph() { return cspace_graph_;};
+     SimpleGraph& GetCSpaceGraph() { return cspace_graph_;};
      const SimpleGraph& GetStartTreeGraph() { return start_tree_;};
      const SimpleGraph& GetGoalTreeGraph() { return goal_tree_;};
 
@@ -117,6 +122,10 @@ private:
 
 };
 
+// Class to calculate the features for a given workspace (and plan for the
+// Elipptical distance), and store the results in the table to be accessed
+// By the sampler.
+
 class FeatureCalc{
 public:
     FeatureCalc(A_star& planner, Graph& graph, vector_map::VectorMap map):
@@ -129,6 +138,7 @@ public:
     float GetEllipPathDist(const GraphIndex& index);
 
     void GenerateFrvValues();
+    float CalcFrv(const Eigen::Vector2f& loc);
     float GetFrvValue(const GraphIndex& index);
     
     // For testing
@@ -137,7 +147,7 @@ public:
 
 
 private:
-    float CalcFrv(const Eigen::Vector2f& loc);
+
 
     // For Testing - Draw Image
     template<typename EigenMatrixT>

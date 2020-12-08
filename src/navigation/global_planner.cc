@@ -23,11 +23,11 @@ namespace planning {
             cout << msg << endl;
             throw msg;
         }
-        return vertices_[index].neighbors;
+        return vertices_[index]->neighbors;
     }
 
     std::size_t SimpleGraph::AddVertex(const navigation::PoseSE2& pose) {
-        vertices_.push_back(Node(pose));
+        vertices_.push_back(NodePtr(new Node(pose)));
 
         return vertices_.size()-1;
     }
@@ -43,8 +43,8 @@ namespace planning {
             throw msg;
         }
 
-        vertices_[vertex].neighbors.push_back(NodePtr(&vertices_[neighbor]));
-        vertices_[neighbor].neighbors.push_back(NodePtr(&vertices_[vertex]));
+        vertices_[vertex]->neighbors.push_back(NodePtr(vertices_[neighbor]));
+        vertices_[neighbor]->neighbors.push_back(NodePtr(vertices_[vertex]));
     }
 
     navigation::PoseSE2 SimpleGraph::GetVertexPose(std::size_t index) {
@@ -54,7 +54,7 @@ namespace planning {
                 throw msg;
            }
 
-        return vertices_[index].pose;
+        return vertices_[index]->pose;
     }
 
     navigation::PoseSE2 SimpleGraph::GetVertexPose(const NodePtr& vertex) {
@@ -67,14 +67,14 @@ namespace planning {
                     cout << msg << endl;
                     throw msg;
                }
-        return NodePtr(&vertices_[index]);
+        return NodePtr(vertices_[index]);
     }
 
     void SimpleGraph::MergeGraph(const SimpleGraph& other,const NodePtr& edge_vertex,
                                  const NodePtr& edge_vertex_in_other) {
         edge_vertex->neighbors.push_back(edge_vertex_in_other);
         edge_vertex_in_other->neighbors.push_back(edge_vertex);
-        const vector<Node>& other_vertices = other.GetVertices();
+        const vector<NodePtr>& other_vertices = other.GetVertices();
         vertices_.insert(std::end(vertices_), std::begin(other_vertices),std::end(other_vertices));
 
 
@@ -89,7 +89,7 @@ namespace planning {
         std::size_t closest_vertex = 0;
         float closest_dist = std::numeric_limits<float>::max();
         for (std::size_t i = 0; i < vertices_.size(); ++i) {
-            navigation::PoseSE2 vertex_pose = vertices_[i].pose;
+            navigation::PoseSE2 vertex_pose = vertices_[i]->pose;
             float dist_to_curr_vertex =
                     (pose.loc-vertex_pose.loc).squaredNorm() + pow((pose.angle-vertex_pose.angle),2);
             if (dist_to_curr_vertex < closest_dist) {
@@ -211,7 +211,7 @@ namespace planning {
         float vertex_frac_y = modf((pose.loc.y()-y_start_)/grid_spacing_, &vertex_num_y);
 
         float angle = NormalizeAngle(pose.angle);
-        cout << vertex_num_x << " " << vertex_num_y << endl;
+        //cout << vertex_num_x << " " << vertex_num_y << endl;
         if (vertex_num_x > num_vertices_x_ || vertex_num_y > num_vertices_y_) {
             cout << "ERROR: planning::Graph::getClosestVertex -> Provided pose is outside (above) of planning map bounds" << endl;
             throw;
@@ -277,9 +277,9 @@ namespace planning {
 
     std::list<GraphIndex> A_star::generatePath(const navigation::PoseSE2& start, const navigation::PoseSE2& goal, const bool& heuristic){
 
-        cout << "\n\nStarting generatePath..." << endl;
-                debug::print_loc(start.loc," start loc", false);
-                debug::print_loc(goal.loc," goal loc", true);
+        //cout << "\n\nStarting generatePath..." << endl;
+        //       debug::print_loc(start.loc," start loc", false);
+        //       debug::print_loc(goal.loc," goal loc", true);
 
         findStartAndGoalVertex(start, goal);
 
@@ -335,7 +335,7 @@ namespace planning {
         return path;
     }
 
-    std::map<GraphIndex, double> A_star::generateDijCost(const navigation::PoseSE2& loc){
+    std::map<GraphIndex, float> A_star::generateDijCost(const navigation::PoseSE2& loc){
 
         GraphIndex location = graph_.GetClosestVertex(loc);
         

@@ -48,7 +48,7 @@ void visualize_graph(const planning::SimpleGraph& graph, long int color=0x000FF,
     cout << "graph size:" << V.size() << endl;
     for (std::size_t id = 0; id < V.size(); ++id) {
 
-        PoseSE2 vertex_pose = V[id].pose;
+        PoseSE2 vertex_pose = V[id]->pose;
                     //geometry::line2f edge(
                     //        graph.GetLocFromVertexIndex(x_id,y_id),
                     //       graph.GetLocFromVertexIndex(neighbor.x,neighbor.y));
@@ -64,14 +64,16 @@ void visualize_graph(const planning::SimpleGraph& graph, long int color=0x000FF,
     visualization_publisher_.publish(vis_msg_);
  }
 
-void test_uniform_graph_gen(planning::AWBPlanner& planner) {
+long unsigned int test_uniform_graph_gen(planning::AWBPlanner& planner) {
    cout << "Running Uniform RRT sampling test."<< endl;
    planner.GenerateSampledGraphUniform(PoseSE2(-33,19.9,0),Vector2f(-8,14));
-   cout << "Finshed RRT." << endl;
+   auto res = planner.GetCSpaceGraph().GetNumVertices();
+   cout << "Finshed RRT. reward " << res << endl;
+   return res;
 
 }
 
-void test_adaptive_graph_gen(planning::AWBPlanner& planner) {
+long unsigned int test_adaptive_graph_gen(planning::AWBPlanner& planner) {
    PoseSE2 start(-33,19.9,0);
    Vector2f goal(-8,14);
 
@@ -87,7 +89,9 @@ void test_adaptive_graph_gen(planning::AWBPlanner& planner) {
    planner.GenerateProbabilityBitmap();
    cout << "Generate Sampled Graph:" << endl;
    planner.GenerateSampledGraphAdaptive(start, goal);
-   cout << "Finshed RRT." << endl;
+   auto res = planner.GetCSpaceGraph().GetNumVertices();
+   cout << "Finshed RRT. reward " << res << endl;
+   return res;
 }
 
 void test_training(planning::AWBPlanner& planner) {
@@ -100,10 +104,9 @@ void test_training(planning::AWBPlanner& planner) {
     PoseSE2 start(-33,19.9,0);
     Vector2f goal(-8,14);
     planner.GenerateSampledGraphAdaptive(start, goal);
+    //planner.GenerateProbabilityBitmap();
 
 }
-
-
 
 void test_fvr(const planning::AWBPlanner& planner) {
     cout << "Running fvr caluclation test."<< endl;
@@ -164,7 +167,9 @@ int main(int argc, char** argv) {
     //test_adaptive_graph_gen(sample_based_planner);
     //test_training(sample_based_planner);
     //test_ellip_path(sample_based_planner);
-    test_uniform_graph_gen(sample_based_planner);
+    //test_uniform_graph_gen(sample_based_planner);
+    test_training(sample_based_planner);
+
 
     RateLoop loop(20.0);
     while (run_ && ros::ok()) {

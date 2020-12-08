@@ -309,6 +309,7 @@ namespace planning {
             }
 
             if ((step_num % connect_trees) == 0) {
+
                 for (std::size_t i = 0; i < start_tree.GetNumVertices(); ++i) {
                     PoseSE2 start_tree_vertex_pose = start_tree.GetVertexPose(i);
                     for (std::size_t j = 0; j < goal_tree.GetNumVertices(); ++j) {
@@ -317,7 +318,6 @@ namespace planning {
                             start_tree.MergeGraph(goal_tree, start_tree.GetVertex(i),
                                                   goal_tree.GetVertex(j));
                             cspace_graph_ = start_tree;
-                            cout << "made a graph! steps " << step_num << endl;
                             return;
                         }
                     }
@@ -344,6 +344,7 @@ namespace planning {
         Eigen::VectorXf features;
         features.resize(feature_num_);
         E_prob_.resize(feature_num_);
+        E_prob_ << 0, 0;
         for (int x = 0; x < workspace_graph_.getNumVerticesX(); ++x) {
             for (int y = 0; y < workspace_graph_.getNumVerticesY(); ++y) {
                 GraphIndex graph_index(x, y, 0);
@@ -362,7 +363,8 @@ namespace planning {
                 features << frv, elip_dist;
                 //features << elip_dist, 0;
                 float curr_prob = std::exp(weights_.dot(features));
-                //cout << "curr_prob:" << curr_prob << " feature val:" << frv_val << "energy:" << weights_.dot(features) << endl;
+                //cout << "curr_prob:" << curr_prob << " frv val:" << frv
+                //     << " elip_dist: " << elip_dist << " energy:" << weights_.dot(features) << endl;
                 probabilities_(i) = last_accum_prob + curr_prob;
                 E_prob_ += curr_prob*features;
                 last_accum_prob += curr_prob;
@@ -442,28 +444,31 @@ namespace planning {
         return PoseSE2(0,0,0);
     }
 
-    void AWBPlanner::Train() {
+    void AWBPlanner::Train(bool random_paths) {
 
         InitWeights();
-
+        cout << "Starting REINFORCE..." << endl;
         //int batch_size = 5;
-        float reward = 0;
         PoseSE2 start(-33,19.9,0);
         Vector2f goal(-8,14);
         feature_calc_->GenerateFrvValues();
-        feature_calc_->GenerateEllipDistValues(start, PoseSE2(goal,0));
         for (unsigned int i = 0; i < num_train_episodes_; ++i) {
+            float reward = 0;
             RecalcAdpatedDistribution();
-            //SampleStartAndGoal(start,goal);
+            if (random_paths) {
+                SampleStartAndGoal(start, goal);
+                feature_calc_->GenerateEllipDistValues(start, PoseSE2(goal,0));
+            }
+
             GenerateSampledGraphAdaptive(start, goal);
-            reward += -cspace_graph_.GetNumVertices();
-            //if (i % batch_size == 0) { // update
+            reward -= cspace_graph_.GetNumVertices();
+            cout <<"     reward " << reward << endl;
             UpdateGradient(reward);
-            reward = 0;
-            //}
-            cout << " -- Train Episode " << i << "finished." << endl;
+            cout << " -- Training episode " << i+1 << "/" << num_train_episodes_ << " finished." << endl;
         }
+
         RecalcAdpatedDistribution();
+        cout << "--> Ended Training. Learned Weights:" << weights_(0) << " " << weights_(1) << endl;
     }
 
     void AWBPlanner::UpdateGradient(float reward) {
@@ -474,29 +479,48 @@ namespace planning {
         grad_ni << 0, 0;
         features.resize(feature_num_);
         for (auto& node: cspace_graph_.GetVertices()) {
-            PoseSE2 vertex_pose = node.pose;
+            PoseSE2 vertex_pose = node->pose;
             vertex_pose.angle = 0; // Reduce diminsionality to 2D
             float f_rv = feature_calc_->GetFrvValue(workspace_graph_.GetClosestVertex(vertex_pose));
-            float f_elp = 0; // Oleg: Re-enable when Ellip dist is ready
+            float f_elp = feature_calc_->GetEllipPathDist(workspace_graph_.GetClosestVertex(vertex_pose));
             features << f_rv, f_elp;
             grad_ni += features;
         }
-
+        //cout << "    grad ne at end of loop:" << " " << grad_ni(0) << "  " << grad_ni(1) << endl;
+        //cout << "    Ef: " << E_prob_(0) << " " << E_prob_(1)<< endl;
         // OLEG, in this case the R/T -s -1, because the reward function is equal to
         grad_ni = (reward/cspace_graph_.GetNumVertices())*grad_ni - reward*E_prob_;
-        cout << "  gradient update step:" << lr_*grad_ni << endl;
+        cout << "   gradient update step:" << lr_*grad_ni(0) << " "<< lr_*grad_ni(1) << endl;
         weights_ += lr_*grad_ni;
+        //cout << " Weights:" << weights_;
     }
 
     void AWBPlanner::SampleStartAndGoal(PoseSE2& pose, Vector2f &loc) {
-        //;
 
+        int i = 0;
+        while (i < 1000) {
+            Vector2f start(generator_.UniformRandom(-41, 40),
+                        generator_.UniformRandom(4, 21));
+            Vector2f goal(generator_.UniformRandom(-41, 40),
+                      generator_.UniformRandom(4, 21));
+            if (feature_calc_->CalcFrv(start) > 0.5 &&
+                feature_calc_->CalcFrv(goal) > 0.5 &&
+                (start-goal).norm() > 20) {
+                pose = PoseSE2(start, generator_.UniformRandom(-M_PI, M_PI));
+                loc = goal;
+                return;
+            }
+            ++i;
+        }
+
+        pose = PoseSE2(-27,18,0);
+        loc = Vector2f(32,4);
     }
 
 
     void AWBPlanner::InitWeights() {
         weights_.resize(feature_num_);
-        weights_ << 5, 5;
+        weights_ << 5, 4;
     }
 
 
